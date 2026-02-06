@@ -1,0 +1,297 @@
+🎯 LeadCatcher (MVP Prompt)
+
+You are building **LeadCatcher**, a multi-tenant lead capture + basic CRM SaaS for agencies. The MVP must let an agency owner create an embeddable form widget, capture leads on any website, and manage those leads inside a dashboard.
+
+### 1) MVP Goal (Non-Negotiable)
+
+Deliver a working product where:
+
+1. Agency Owner signs up + logs in
+2. Owner creates a widget (simple form builder)
+3. Owner copies embed code and installs on a website
+4. Website visitors submit the widget form
+5. Leads appear in the app instantly
+6. Owner can manage leads (status, notes, assignment)
+7. Basic dashboard shows counts and simple charts
+
+---
+
+## 2) Tech Stack (Keep It Simple)
+
+**Frontend**
+
+* React + TypeScript
+* Tailwind + Shadcn UI
+* React Hook Form + Zod
+* Axios
+* React Router
+
+**Backend**
+
+* Node.js + Express + TypeScript
+* JWT auth + bcrypt
+* Validation with Zod (or express-validator)
+* Rate limiting + Helmet + CORS
+
+**DB**
+
+* MongoDB Atlas + Mongoose
+* Multi-tenant via `agencyId` on every record
+
+> MVP NOTE: **No Socket.io**, **no Stripe**, **no Google OAuth**, **no 2FA**, **no email sequences** in MVP.
+
+---
+
+## 3) Roles (MVP Only)
+
+### Agency Owner
+
+* Full access to widgets + leads + team
+
+### Sales Rep
+
+* View assigned leads only
+* Update lead status + add notes
+
+---
+
+## 4) MVP Features
+
+### A) Authentication (MVP)
+
+* Email + password signup/login
+* Password hashing via bcrypt
+* JWT access token (store in memory or secure storage)
+* Basic “Forgot Password” optional (include only if easy)
+
+**Out of scope for MVP**
+
+* Email verification
+* Google OAuth
+* Refresh tokens
+* 2FA
+* Lockout rules
+
+---
+
+### B) Team (MVP)
+
+* Owner can create/invite reps by email + temp password (simple flow)
+* Owner can deactivate a rep
+
+---
+
+### C) Widget Builder (MVP)
+
+Owner can create a widget with:
+
+* Widget name
+* Form fields (simple list builder, no drag-drop needed)
+
+**Supported fields (MVP only)**
+
+* Text
+* Email
+* Phone
+* Textarea
+* Dropdown
+
+For each field:
+
+* label
+* key (internal name)
+* required boolean
+
+**Customization (MVP only)**
+
+* Primary color
+* Optional heading text
+
+**Out of scope**
+
+* File upload
+* Multi-step forms
+* Conditional visibility
+* Custom CSS
+* Triggers (exit intent/scroll)
+* CAPTCHA (optional later)
+
+---
+
+### D) Embed Code + Widget App (MVP)
+
+* Generate a simple script snippet like:
+
+  * `<script src="https://widget.yourdomain.com/widget.js" data-widget-id="XYZ"></script>`
+* Widget loads config from public API:
+
+  * `GET /api/public/widgets/:widgetId`
+* Widget renders form + submits:
+
+  * `POST /api/public/leads`
+* Add basic anti-spam:
+
+  * Honeypot field
+  * Rate limit per IP (e.g., 10/hr)
+
+---
+
+### E) Lead Management (MVP)
+
+**Lead fields (minimum)**
+
+* agencyId
+* widgetId
+* name (optional if not captured)
+* email (if captured)
+* phone (if captured)
+* formResponses (key/value)
+* status
+* assignedTo (optional)
+* createdAt, updatedAt
+* metadata: referrerUrl, userAgent, ip (optional)
+
+**Statuses (MVP simplified)**
+
+* New
+* Contacted
+* Qualified
+* Converted
+* Closed Lost
+
+**Lead List**
+
+* Filter by status
+* Search by name/email
+* Sort by newest
+
+**Lead Detail**
+
+* View all responses
+* Change status
+* Assign to rep
+* Add internal notes (simple timeline list)
+
+---
+
+### F) Lead Assignment (MVP)
+
+* Default: Round-robin across active reps
+* Owner can override assignment manually
+
+**Out of scope**
+
+* Territory rules
+* Capacity rules
+* Reject/claim flows (optional later)
+* Automated scoring
+
+---
+
+### G) Dashboard (MVP)
+
+For a selected date range (Last 7 / 30 / 90 days):
+
+* Total leads
+* Leads by status
+* Leads by widget source (simple bar/pie chart)
+* Leads over time (simple line chart)
+
+**Out of scope**
+
+* PDF export
+* Real-time socket updates
+* Advanced analytics
+
+---
+
+## 5) MVP Database Collections
+
+* `agencies`
+* `users` (includes role + agencyId)
+* `widgets`
+* `leads`
+* `leadNotes` (or embed notes array in leads for MVP)
+
+**Indexes (minimum)**
+
+* users: `email`, `agencyId`
+* widgets: `agencyId`, `widgetId`
+* leads: `agencyId`, `widgetId`, `status`, `assignedTo`, `createdAt`
+
+---
+
+## 6) MVP API Routes (Minimum Set)
+
+### Auth
+
+* POST `/api/auth/register`
+* POST `/api/auth/login`
+* GET `/api/users/me`
+
+### Team (Owner)
+
+* POST `/api/users` (create rep)
+* GET `/api/users` (list reps)
+* PUT `/api/users/:id/deactivate`
+
+### Widgets
+
+* POST `/api/widgets`
+* GET `/api/widgets`
+* GET `/api/widgets/:id`
+* PUT `/api/widgets/:id`
+* DELETE `/api/widgets/:id`
+* GET `/api/widgets/:id/embed-code`
+
+### Public
+
+* GET `/api/public/widgets/:widgetId`
+* POST `/api/public/leads`
+
+### Leads
+
+* GET `/api/leads` (filters/search)
+* GET `/api/leads/:id`
+* PUT `/api/leads/:id` (status + assignment)
+* POST `/api/leads/:id/notes`
+
+### Dashboard
+
+* GET `/api/dashboard/overview`
+* GET `/api/dashboard/status-breakdown`
+* GET `/api/dashboard/source-breakdown`
+* GET `/api/dashboard/leads-over-time`
+
+---
+
+## 7) Security (MVP Must Have)
+
+* Rate limiting on auth + public leads endpoint
+* Helmet security headers
+* Input validation everywhere
+* Tenant isolation: all queries filtered by `agencyId`
+* CORS: public endpoints allow all origins, private endpoints restrict to app domain
+
+---
+
+## 8) UI Pages (MVP)
+
+* Login / Register
+* Dashboard
+* Widgets: list + create/edit + embed code
+* Leads: list + lead detail
+* Team: reps list + add rep
+* Settings (basic: agency name, primary color optional)
+
+---
+
+## 9) Definition of Done (MVP Acceptance Criteria)
+
+* Owner can create widget → embed on a test HTML page → submit lead
+* Lead appears in app under correct agency within seconds
+* Owner can change lead status + add note + assign to a rep
+* Rep can log in and only see assigned leads
+* Dashboard shows correct counts for a date range
+* Public endpoint is rate-limited and honeypot blocks obvious bots
+
