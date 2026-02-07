@@ -1,0 +1,748 @@
+# 🧪 LeadCatcher MVP - Automated Testing & Bug Fix Prompt for Replit Agent
+
+## Your Mission
+
+You are a **QA Engineer and Bug Fixer** for the LeadCatcher MVP application. Your task is to systematically test every feature according to the test cases provided, identify bugs, fix them, and provide a comprehensive test report.
+
+---
+
+## 🎯 Testing Objectives
+
+1. **Execute all 135 test cases** systematically by priority (Critical → High → Medium → Low)
+2. **Document all failures** with screenshots, error logs, and reproduction steps
+3. **Fix all critical and high-priority bugs** immediately
+4. **Provide a final test report** with pass/fail statistics and remaining issues
+
+---
+
+## 📋 Test Cases Reference
+
+All test cases are organized into 11 categories with 135 total tests:
+
+### **Priority Distribution:**
+- **Critical**: 22 tests (MUST pass before launch)
+- **High**: 46 tests (SHOULD pass before launch)
+- **Medium**: 21 tests (Nice to have)
+- **Low**: 7 tests (Polish items)
+
+### **Test Categories:**
+1. Authentication & User Management (10 tests)
+2. Team Management (5 tests)
+3. Widget Builder (11 tests)
+4. Widget Embed & Public Form (10 tests)
+5. Lead Management (20 tests)
+6. Dashboard & Analytics (11 tests)
+7. Security & Validation (11 tests)
+8. Edge Cases & Error Handling (10 tests)
+9. End-to-End Flows (5 tests)
+10. Performance (5 tests)
+11. UI/UX & Accessibility (7 tests)
+
+---
+
+## 🔧 Testing Approach
+
+### Phase 1: Setup Testing Environment
+```bash
+# 1. Verify application is running
+# Check if both frontend and backend are running
+# Verify MongoDB connection is active
+# Confirm all environment variables are set
+
+# 2. Create test data sets
+# Create 2-3 test agencies
+# Create 5-10 test users (owners and reps)
+# Create 3-5 test widgets
+# Generate 20-30 test leads
+
+# 3. Set up automated testing framework
+# Install testing libraries: Playwright, Jest, Supertest, etc.
+npm install --save-dev playwright @playwright/test supertest jest
+```
+
+### Phase 2: Automated Test Execution
+
+Create automated test scripts for each category:
+
+#### **Example Test Structure:**
+
+```javascript
+// tests/auth.test.js
+const { test, expect } = require('@playwright/test');
+
+test.describe('Authentication Tests', () => {
+  
+  test('AUTH-001: Agency Owner Registration', async ({ page }) => {
+    await page.goto('http://localhost:3000/register');
+    
+    // Fill registration form
+    await page.fill('input[name="email"]', 'testowner@example.com');
+    await page.fill('input[name="password"]', 'SecurePass123!');
+    await page.fill('input[name="agencyName"]', 'Test Agency');
+    await page.click('button[type="submit"]');
+    
+    // Verify redirect to dashboard
+    await expect(page).toHaveURL(/.*dashboard/);
+    
+    // Verify JWT token exists
+    const cookies = await page.context().cookies();
+    const hasToken = cookies.some(c => c.name === 'token' || c.name === 'auth');
+    expect(hasToken).toBeTruthy();
+    
+    console.log('✅ AUTH-001: PASS');
+  });
+
+  test('AUTH-002: Registration with Existing Email', async ({ page }) => {
+    // First registration
+    await page.goto('http://localhost:3000/register');
+    await page.fill('input[name="email"]', 'duplicate@example.com');
+    await page.fill('input[name="password"]', 'SecurePass123!');
+    await page.fill('input[name="agencyName"]', 'Agency One');
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(1000);
+    
+    // Logout if successful
+    await page.goto('http://localhost:3000/logout');
+    
+    // Try duplicate registration
+    await page.goto('http://localhost:3000/register');
+    await page.fill('input[name="email"]', 'duplicate@example.com');
+    await page.fill('input[name="password"]', 'AnotherPass123!');
+    await page.fill('input[name="agencyName"]', 'Agency Two');
+    await page.click('button[type="submit"]');
+    
+    // Verify error message
+    const errorMessage = await page.locator('text=/email already exists/i').isVisible();
+    expect(errorMessage).toBeTruthy();
+    
+    console.log('✅ AUTH-002: PASS');
+  });
+
+  // Continue for all AUTH tests...
+});
+```
+
+#### **API Testing Example:**
+
+```javascript
+// tests/api/widgets.test.js
+const request = require('supertest');
+const app = require('../../server'); // Your Express app
+
+describe('Widget API Tests', () => {
+  let authToken;
+  let agencyId;
+
+  beforeAll(async () => {
+    // Login and get token
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'testowner@example.com', password: 'SecurePass123!' });
+    
+    authToken = loginRes.body.token;
+    agencyId = loginRes.body.user.agencyId;
+  });
+
+  test('WIDGET-001: Create Basic Widget', async () => {
+    const response = await request(app)
+      .post('/api/widgets')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        name: 'Contact Form',
+        fields: [
+          { label: 'Name', key: 'name', type: 'text', required: true },
+          { label: 'Email', key: 'email', type: 'email', required: true },
+          { label: 'Phone', key: 'phone', type: 'phone', required: false }
+        ],
+        primaryColor: '#FF5733',
+        heading: 'Contact Us'
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.widget).toHaveProperty('_id');
+    expect(response.body.widget.name).toBe('Contact Form');
+    expect(response.body.widget.fields).toHaveLength(3);
+    
+    console.log('✅ WIDGET-001: PASS');
+  });
+
+  test('SEC-008: Tenant Isolation in API', async () => {
+    // Create widget for Agency A
+    const widgetA = await request(app)
+      .post('/api/widgets')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ name: 'Agency A Widget', fields: [] });
+
+    const widgetAId = widgetA.body.widget._id;
+
+    // Login as Agency B
+    const loginB = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'agencyb@example.com', password: 'Pass123!' });
+
+    const tokenB = loginB.body.token;
+
+    // Try to access Agency A's widget
+    const response = await request(app)
+      .get(`/api/widgets/${widgetAId}`)
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(response.status).toBe(404); // or 403
+    
+    console.log('✅ SEC-008: PASS');
+  });
+
+  // Continue for all widget and security tests...
+});
+```
+
+### Phase 3: Manual Testing for UI/UX
+
+For tests that require visual inspection or complex user interactions:
+
+```javascript
+// tests/manual-checklist.md
+
+## Manual Test Checklist
+
+### UI-001: Navigation Clarity
+- [ ] Open application and review navigation menu
+- [ ] Click each menu item and verify it navigates correctly
+- [ ] Check that labels are clear and descriptive
+- [ ] Screenshot navigation for documentation
+
+### UI-004: Mobile Responsiveness
+- [ ] Open Chrome DevTools
+- [ ] Switch to mobile view (iPhone 12, Samsung Galaxy, iPad)
+- [ ] Test all major features on each device size
+- [ ] Check for horizontal scrolling issues
+- [ ] Verify touch targets are appropriately sized
+- [ ] Screenshot any layout issues
+
+### EMBED-010: Widget on Mobile Browser
+- [ ] Create test HTML page with embedded widget
+- [ ] Open on actual mobile device
+- [ ] Fill out form and submit
+- [ ] Verify lead appears in dashboard
+- [ ] Document any mobile-specific issues
+```
+
+---
+
+## 🐛 Bug Fixing Protocol
+
+### When a Test Fails:
+
+1. **Document the Bug:**
+```markdown
+**Bug ID**: [TEST-ID]-BUG-001
+**Severity**: P0 (Critical) / P1 (High) / P2 (Medium) / P3 (Low)
+**Test Case**: [Test Case ID]
+**Title**: Brief description
+**Description**: What went wrong
+**Steps to Reproduce**:
+1. Step one
+2. Step two
+3. Step three
+
+**Expected**: What should happen
+**Actual**: What actually happened
+**Environment**: Browser, OS, API version
+**Screenshots**: Attach if applicable
+**Error Logs**: Include console errors, server logs
+```
+
+2. **Fix the Bug Immediately (for P0/P1 bugs):**
+
+```javascript
+// Example: Fixing AUTH-002 - Duplicate email bug
+
+// BEFORE (Bug - allows duplicate emails):
+router.post('/register', async (req, res) => {
+  const { email, password, agencyName } = req.body;
+  
+  // Missing duplicate check!
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = new User({ email, password: hashedPassword, agencyName });
+  await user.save();
+  
+  res.json({ success: true });
+});
+
+// AFTER (Fixed):
+router.post('/register', async (req, res) => {
+  const { email, password, agencyName } = req.body;
+  
+  // Check for existing user
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(400).json({ 
+      error: 'Email already exists',
+      message: 'An account with this email address already exists.'
+    });
+  }
+  
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = new User({ email, password: hashedPassword, agencyName });
+  await user.save();
+  
+  res.json({ success: true });
+});
+```
+
+3. **Re-test the Fixed Bug:**
+   - Run the specific test case again
+   - Verify the fix doesn't break other functionality
+   - Update test status to PASS
+
+4. **Commit the Fix:**
+```bash
+git add .
+git commit -m "Fix: [TEST-ID] - Brief description of fix"
+```
+
+---
+
+## 🎯 Critical Path Tests (Must Execute First)
+
+These tests MUST pass before any other testing:
+
+### **Authentication Critical Path:**
+1. AUTH-005: Login with Valid Credentials
+2. AUTH-010: Access Protected Route Without Token
+
+### **Widget Critical Path:**
+3. WIDGET-001: Create Basic Widget
+4. WIDGET-010: Generate Embed Code
+5. WIDGET-011: Multi-tenant Isolation
+
+### **Embed Critical Path:**
+6. EMBED-001: Embed Widget on Test Page
+7. EMBED-003: Submit Valid Lead
+
+### **Lead Management Critical Path:**
+8. LEAD-001: View Leads List (Owner)
+9. LEAD-002: View Assigned Leads Only (Rep)
+10. LEAD-003: Lead Appears Instantly After Submission
+11. LEAD-012: Assign Lead to Rep (Owner)
+12. LEAD-018: Multi-tenant Lead Isolation
+
+### **Security Critical Path:**
+13. SEC-001: SQL/NoSQL Injection Prevention
+14. SEC-002: XSS Prevention in Lead Data
+15. SEC-004: Rate Limiting on Auth Endpoints
+16. SEC-006: Password Hashing Verification
+17. SEC-008: Tenant Isolation in API
+18. SEC-009: Authorization for Owner-only Routes
+
+### **End-to-End Critical Path:**
+19. E2E-001: Complete Lead Capture Flow
+20. E2E-002: Multi-widget Multi-rep Flow
+21. E2E-004: Agency Onboarding Flow
+
+### **Dashboard Critical Path:**
+22. DASH-001: View Dashboard Overview
+
+---
+
+## 📊 Test Execution Order
+
+### **Day 1: Critical & Security Tests**
+```
+Priority: Critical + Security (33 tests)
+Goal: Ensure core functionality and security are solid
+Time: 4-6 hours
+
+Tasks:
+1. Set up test environment
+2. Run all Critical Path tests (22 tests)
+3. Run all Security tests (11 tests)
+4. Fix all P0 bugs immediately
+5. Fix all P1 bugs if time permits
+```
+
+### **Day 2: High Priority Features**
+```
+Priority: High (46 tests)
+Goal: Verify all major features work correctly
+Time: 6-8 hours
+
+Tasks:
+1. Authentication tests (remaining)
+2. Team Management tests
+3. Widget Builder tests
+4. Lead Management tests
+5. Dashboard tests
+6. Fix P1 bugs
+7. Document P2 bugs for later
+```
+
+### **Day 3: Medium & Low Priority**
+```
+Priority: Medium + Low (28 tests)
+Goal: Polish and edge case handling
+Time: 4-5 hours
+
+Tasks:
+1. Edge case tests
+2. Performance tests
+3. UI/UX tests
+4. Fix P2 bugs if critical
+5. Document P3 bugs for backlog
+```
+
+### **Day 4: End-to-End & Regression**
+```
+Priority: Integration & Regression
+Goal: Ensure everything works together
+Time: 3-4 hours
+
+Tasks:
+1. Run all End-to-End flows
+2. Regression test all previously fixed bugs
+3. Final smoke test of entire application
+4. Generate test report
+```
+
+---
+
+## 🤖 Automated Testing Script
+
+Create a master test runner:
+
+```javascript
+// run-tests.js
+const { execSync } = require('child_process');
+const fs = require('fs');
+
+const categories = [
+  'auth',
+  'team',
+  'widgets',
+  'embed',
+  'leads',
+  'dashboard',
+  'security',
+  'edge-cases',
+  'e2e',
+  'performance',
+  'ui'
+];
+
+const results = {
+  total: 0,
+  passed: 0,
+  failed: 0,
+  skipped: 0,
+  failures: []
+};
+
+console.log('🧪 Starting LeadCatcher MVP Test Suite...\n');
+
+for (const category of categories) {
+  console.log(`\n📋 Running ${category} tests...`);
+  
+  try {
+    execSync(`npx playwright test tests/${category}.test.js --reporter=json`, {
+      stdio: 'inherit'
+    });
+    
+    // Parse results
+    const testResults = JSON.parse(
+      fs.readFileSync(`test-results/${category}-results.json`, 'utf8')
+    );
+    
+    results.total += testResults.total;
+    results.passed += testResults.passed;
+    results.failed += testResults.failed;
+    
+    if (testResults.failed > 0) {
+      results.failures.push(...testResults.failures);
+    }
+    
+  } catch (error) {
+    console.error(`❌ ${category} tests failed with error:`, error.message);
+  }
+}
+
+// Generate final report
+console.log('\n' + '='.repeat(60));
+console.log('📊 FINAL TEST REPORT');
+console.log('='.repeat(60));
+console.log(`Total Tests: ${results.total}`);
+console.log(`✅ Passed: ${results.passed} (${((results.passed/results.total)*100).toFixed(1)}%)`);
+console.log(`❌ Failed: ${results.failed} (${((results.failed/results.total)*100).toFixed(1)}%)`);
+console.log(`⏭️  Skipped: ${results.skipped}`);
+console.log('='.repeat(60));
+
+if (results.failed > 0) {
+  console.log('\n❌ FAILED TESTS:\n');
+  results.failures.forEach((failure, index) => {
+    console.log(`${index + 1}. ${failure.testId}: ${failure.title}`);
+    console.log(`   Error: ${failure.error}`);
+    console.log('');
+  });
+}
+
+// Write results to file
+fs.writeFileSync('test-report.json', JSON.stringify(results, null, 2));
+console.log('\n📄 Full report saved to: test-report.json');
+
+// Exit with error code if tests failed
+process.exit(results.failed > 0 ? 1 : 0);
+```
+
+**Run with:**
+```bash
+node run-tests.js
+```
+
+---
+
+## 📝 Test Report Format
+
+Generate a comprehensive report after testing:
+
+```markdown
+# LeadCatcher MVP - Test Execution Report
+
+**Date**: [Date]
+**Tester**: Replit Agent
+**Application Version**: MVP v1.0
+**Environment**: Replit Development
+
+---
+
+## Executive Summary
+
+- **Total Test Cases**: 135
+- **Tests Executed**: 135 (100%)
+- **Tests Passed**: 128 (94.8%)
+- **Tests Failed**: 7 (5.2%)
+- **Tests Skipped**: 0 (0%)
+
+### Pass Rate by Priority:
+- ✅ **Critical**: 22/22 (100%) - **READY FOR LAUNCH**
+- ✅ **High**: 44/46 (95.7%) - **ACCEPTABLE**
+- ⚠️ **Medium**: 18/21 (85.7%) - **ACCEPTABLE**
+- ✅ **Low**: 6/7 (85.7%) - **ACCEPTABLE**
+
+---
+
+## Test Results by Category
+
+### 1. Authentication & User Management
+- **Total**: 10 | **Passed**: 10 | **Failed**: 0
+- ✅ All tests passed
+
+### 2. Team Management
+- **Total**: 5 | **Passed**: 5 | **Failed**: 0
+- ✅ All tests passed
+
+### 3. Widget Builder
+- **Total**: 11 | **Passed**: 10 | **Failed**: 1
+- ❌ WIDGET-006: Customize Primary Color - Color not applying correctly
+  - **Severity**: P3 (Low)
+  - **Fix Required**: Update CSS variable binding in widget template
+
+### 4. Widget Embed & Public Form
+- **Total**: 10 | **Passed**: 9 | **Failed**: 1
+- ❌ EMBED-008: Capture Metadata - IP address not being captured
+  - **Severity**: P2 (Medium)
+  - **Fix Required**: Add IP capture middleware in public routes
+
+[Continue for all categories...]
+
+---
+
+## Critical Bugs Found & Fixed
+
+### Bug #1: AUTH-002 - Duplicate Email Registration
+- **Severity**: P1 (High)
+- **Status**: ✅ FIXED
+- **Description**: Application allowed registration with duplicate emails
+- **Fix**: Added email uniqueness check before user creation
+- **Code Changed**: `/api/routes/auth.js` line 34-38
+
+### Bug #2: SEC-008 - Tenant Isolation Breach
+- **Severity**: P0 (Critical)
+- **Status**: ✅ FIXED
+- **Description**: Users could access other agencies' widgets via direct API calls
+- **Fix**: Added agencyId filter to all widget queries
+- **Code Changed**: `/api/middleware/tenantFilter.js` (new file)
+
+[Continue for all fixed bugs...]
+
+---
+
+## Outstanding Issues
+
+### High Priority (P1) - Must Fix Before Launch:
+None ✅
+
+### Medium Priority (P2) - Should Fix:
+1. EMBED-008: IP address metadata not capturing
+   - Impact: Analytics incomplete
+   - Workaround: User agent and referrer still captured
+
+2. LEAD-007: Sort functionality not working on mobile
+   - Impact: Poor mobile UX
+   - Workaround: Works on desktop
+
+### Low Priority (P3) - Backlog:
+1. WIDGET-006: Primary color customization not applying
+2. UI-007: Empty state message too generic
+
+---
+
+## Performance Metrics
+
+- **Dashboard Load Time**: 1.8s avg (Target: <3s) ✅
+- **Leads List Load Time**: 1.2s avg (Target: <2s) ✅
+- **Widget Embed Load Time**: 0.7s avg (Target: <1s) ✅
+- **API Response Time**: 150ms avg ✅
+
+---
+
+## Security Assessment
+
+✅ **All Critical Security Tests Passed**
+
+- SQL/NoSQL Injection: Protected ✅
+- XSS Prevention: Protected ✅
+- CORS Configuration: Correct ✅
+- Rate Limiting: Working ✅
+- Password Hashing: bcrypt implemented ✅
+- JWT Token Security: Secure ✅
+- Tenant Isolation: Enforced ✅
+- Authorization: Proper role checks ✅
+
+---
+
+## Launch Readiness: ✅ READY
+
+### Criteria Met:
+- ✅ 100% of Critical tests passed
+- ✅ 95%+ of High priority tests passed
+- ✅ All P0 and P1 bugs fixed
+- ✅ Security validated
+- ✅ Core user flows functional
+
+### Pre-Launch Recommendations:
+1. Fix EMBED-008 (IP capture) before launch - quick fix
+2. Monitor P2 bugs in production
+3. Address P3 bugs in next sprint
+4. Set up error monitoring (Sentry/LogRocket)
+5. Configure production rate limits
+
+---
+
+## Testing Evidence
+
+All test runs recorded in:
+- `/test-results/playwright-report/index.html`
+- `/test-results/screenshots/` (failure screenshots)
+- `/logs/test-execution.log`
+
+---
+
+**Report Generated**: [Timestamp]
+**Next Steps**: Deploy to staging for final UAT
+```
+
+---
+
+## 🚀 Quick Start Command
+
+To begin testing, run:
+
+```bash
+# Install dependencies
+npm install
+
+# Set up test environment
+npm run test:setup
+
+# Run all tests
+npm run test:all
+
+# Or run by priority
+npm run test:critical
+npm run test:high
+npm run test:medium
+npm run test:low
+
+# Generate report
+npm run test:report
+```
+
+---
+
+## ✅ Acceptance Criteria for MVP Launch
+
+Before marking the application as "ready to launch", verify:
+
+- [ ] **100% of Critical tests passed** (22/22)
+- [ ] **95%+ of High priority tests passed** (44+/46)
+- [ ] **80%+ of Medium priority tests passed** (17+/21)
+- [ ] **All P0 bugs fixed** (0 remaining)
+- [ ] **All P1 bugs fixed** (0 remaining)
+- [ ] **Security tests all passed** (11/11)
+- [ ] **End-to-end flows working** (5/5)
+- [ ] **Test report generated and reviewed**
+
+---
+
+## 📦 Deliverables
+
+At the end of testing, provide:
+
+1. ✅ **Test Execution Report** (markdown format)
+2. ✅ **Bug List** (JSON/CSV with all bugs found)
+3. ✅ **Fixed Code** (all bug fixes committed)
+4. ✅ **Test Coverage Report** (% of code tested)
+5. ✅ **Screenshots** (for failed tests)
+6. ✅ **Performance Metrics** (load times, response times)
+7. ✅ **Launch Recommendation** (Ready / Not Ready + reasons)
+
+---
+
+## 🎓 Important Notes
+
+- **Test in order of priority** - Critical tests first
+- **Fix critical bugs immediately** - Don't move forward until P0/P1 bugs are fixed
+- **Document everything** - Screenshots, logs, steps to reproduce
+- **Re-test after fixes** - Ensure bug is actually fixed and didn't break something else
+- **Be thorough** - Better to find bugs now than in production
+- **Think like a user** - Try to break the app in unexpected ways
+
+---
+
+## 💡 Testing Tips
+
+1. **Use realistic test data** - Real names, emails, phone numbers (fake but realistic)
+2. **Test browser compatibility** - Chrome, Firefox, Safari minimum
+3. **Test mobile devices** - Both iOS and Android if possible
+4. **Check error messages** - Are they helpful and user-friendly?
+5. **Verify data persistence** - Does data survive page refresh?
+6. **Test edge cases** - Empty fields, very long text, special characters
+7. **Check loading states** - Are there spinners/indicators during async operations?
+8. **Verify console errors** - No errors should appear in browser console
+9. **Test as different users** - Owner vs Rep, Agency A vs Agency B
+10. **Document workarounds** - If a bug can't be fixed now, document the workaround
+
+---
+
+## 🆘 If You Get Stuck
+
+If a test is unclear or you're unsure how to execute it:
+
+1. Read the test case carefully - Steps, Expected Result, Pass/Fail Criteria
+2. Check the master prompt - Refer to the original feature specifications
+3. Look at similar working features - How does a similar feature work?
+4. Test manually first - Before automating, do it manually to understand the flow
+5. Ask for clarification - Document what's unclear and ask
+
+---
+
+**Good luck with testing! Let's ship a high-quality MVP! 🚀**
