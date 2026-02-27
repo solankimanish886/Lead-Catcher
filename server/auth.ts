@@ -22,9 +22,11 @@ const scryptAsync = promisify(scrypt);
 // OR I can just install bcryptjs. Let's install bcryptjs to be compliant.
 import { compare, hash } from "bcryptjs";
 
+import mongoose from "mongoose";
+
 export function setupAuth(app: Express) {
   const sessionStore = MongoStore.create({
-    mongoUrl: process.env.DATABASE_URL as string,
+    client: mongoose.connection.getClient() as any,
     collectionName: "sessions",
     dbName: "lead-catcher",
   });
