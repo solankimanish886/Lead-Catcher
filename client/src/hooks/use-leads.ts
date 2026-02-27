@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type UpdateLeadRequest } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
+import { type InsertLead, type Lead, type UpdateLeadRequest } from "@shared/schema";
+
 import { useToast } from "@/hooks/use-toast";
 
 export function useLeads(filters?: { status?: string; search?: string }) {
@@ -11,7 +13,7 @@ export function useLeads(filters?: { status?: string; search?: string }) {
       const params = new URLSearchParams();
       if (filters?.status && filters.status !== "all") params.append("status", filters.status);
       if (filters?.search) params.append("search", filters.search);
-      if (params.toString()) url += `?${params.toString()}`;
+      if (params.toString()) url += `? ${params.toString()} `;
 
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch leads");

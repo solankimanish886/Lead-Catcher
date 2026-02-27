@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertUserSchema, insertWidgetSchema, insertLeadSchema, insertNoteSchema, users, widgets, leads, notes, agencies } from './schema';
+import { insertUserSchema, insertWidgetSchema, insertLeadSchema, insertNoteSchema, User, Widget, Lead, Note, Agency } from './schema';
 
 // ============================================
 // SHARED ERROR SCHEMAS
@@ -35,7 +35,7 @@ export const api = {
         agencyName: z.string().min(1),
       }),
       responses: {
-        201: z.custom<typeof users.$inferSelect>(), // Returns user (without password ideally, but schema type has it)
+        201: z.custom<User>(), // Returns user (without password ideally, but schema type has it)
         400: errorSchemas.validation,
       },
     },
@@ -47,7 +47,7 @@ export const api = {
         password: z.string(),
       }),
       responses: {
-        200: z.custom<typeof users.$inferSelect>(),
+        200: z.custom<User>(),
         401: errorSchemas.unauthorized,
       },
     },
@@ -62,7 +62,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/user',
       responses: {
-        200: z.custom<typeof users.$inferSelect>(),
+        200: z.custom<User>(),
         401: errorSchemas.unauthorized,
       },
     },
@@ -72,7 +72,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/team',
       responses: {
-        200: z.array(z.custom<typeof users.$inferSelect>()),
+        200: z.array(z.custom<User>()),
       },
     },
     invite: {
@@ -84,7 +84,7 @@ export const api = {
         password: z.string().min(6), // Temp password
       }),
       responses: {
-        201: z.custom<typeof users.$inferSelect>(),
+        201: z.custom<User>(),
         400: errorSchemas.validation,
       },
     },
@@ -94,14 +94,14 @@ export const api = {
       method: 'GET' as const,
       path: '/api/widgets',
       responses: {
-        200: z.array(z.custom<typeof widgets.$inferSelect>()),
+        200: z.array(z.custom<Widget>()),
       },
     },
     get: {
       method: 'GET' as const,
       path: '/api/widgets/:id',
       responses: {
-        200: z.custom<typeof widgets.$inferSelect>(),
+        200: z.custom<Widget>(),
         404: errorSchemas.notFound,
       },
     },
@@ -110,7 +110,7 @@ export const api = {
       path: '/api/widgets',
       input: insertWidgetSchema.omit({ agencyId: true }),
       responses: {
-        201: z.custom<typeof widgets.$inferSelect>(),
+        201: z.custom<Widget>(),
         400: errorSchemas.validation,
       },
     },
@@ -119,7 +119,7 @@ export const api = {
       path: '/api/widgets/:id',
       input: insertWidgetSchema.omit({ agencyId: true }).partial(),
       responses: {
-        200: z.custom<typeof widgets.$inferSelect>(),
+        200: z.custom<Widget>(),
         404: errorSchemas.notFound,
       },
     },
@@ -141,14 +141,14 @@ export const api = {
         search: z.string().optional(),
       }).optional(),
       responses: {
-        200: z.array(z.custom<typeof leads.$inferSelect & { widgetName?: string, assigneeName?: string }>()),
+        200: z.array(z.custom<Lead & { widgetName?: string, assigneeName?: string }>()),
       },
     },
     get: {
       method: 'GET' as const,
       path: '/api/leads/:id',
       responses: {
-        200: z.custom<typeof leads.$inferSelect & { notes: typeof notes.$inferSelect[] }>(),
+        200: z.custom<Lead & { notes: Note[] }>(),
         404: errorSchemas.notFound,
       },
     },
@@ -160,7 +160,7 @@ export const api = {
         assignedTo: z.number().nullable().optional(),
       }),
       responses: {
-        200: z.custom<typeof leads.$inferSelect>(),
+        200: z.custom<Lead>(),
         404: errorSchemas.notFound,
       },
     },
@@ -171,7 +171,7 @@ export const api = {
         content: z.string().min(1),
       }),
       responses: {
-        201: z.custom<typeof notes.$inferSelect>(),
+        201: z.custom<Note>(),
       },
     },
   },
@@ -187,7 +187,7 @@ export const api = {
           totalLeads: z.number(),
           leadsByStatus: z.record(z.number()),
           leadsByWidget: z.record(z.number()),
-          recentLeads: z.array(z.custom<typeof leads.$inferSelect>()),
+          recentLeads: z.array(z.custom<Lead>()),
         }),
       },
     },
@@ -198,7 +198,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/public/widgets/:id',
       responses: {
-        200: z.custom<typeof widgets.$inferSelect>(),
+        200: z.custom<Widget>(),
         404: errorSchemas.notFound,
       },
     },

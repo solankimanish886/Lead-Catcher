@@ -2,9 +2,8 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import pgSession from "connect-pg-simple";
+import MongoStore from "connect-mongo";
 import { storage } from "./storage";
-import { pool } from "./db";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -24,12 +23,12 @@ const scryptAsync = promisify(scrypt);
 import { compare, hash } from "bcryptjs";
 
 export function setupAuth(app: Express) {
-  const PgSession = pgSession(session);
-  const sessionStore = new PgSession({
-    pool,
-    createTableIfMissing: true,
+  const sessionStore = MongoStore.create({
+    mongoUrl: process.env.DATABASE_URL as string,
+    collectionName: "sessions",
+    dbName: "lead-catcher",
   });
-  
+
   // Make store available to storage for other uses if needed
   storage.sessionStore = sessionStore;
 
@@ -97,16 +96,16 @@ export function setupAuth(app: Express) {
       // Wait, in `server/routes.ts`, I didn't implement the Auth routes! 
       // I only called `setupAuth(app)`.
       // So I MUST implement the auth routes HERE in `setupAuth`.
-      
+
       const email = req.body.email;
       const existingUser = await storage.getUserByEmail(email);
-      
+
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
 
       const hashedPassword = await hash(req.body.password, 10);
-      
+
       // We need agency creation too for the owner
       const agency = await storage.createAgency({
         name: req.body.agencyName || `${req.body.name}'s Agency`,

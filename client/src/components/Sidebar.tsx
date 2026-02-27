@@ -22,7 +22,7 @@ export function Sidebar() {
         <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
           LeadCatcher
         </h1>
-        <p className="text-xs text-muted-foreground mt-1 font-medium">{user.agency?.name || "Agency Portal"}</p>
+        <p className="text-xs text-muted-foreground truncate">Your Agency</p>
       </div>
 
       <nav className="flex-1 space-y-1 px-3">

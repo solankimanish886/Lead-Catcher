@@ -1,6 +1,7 @@
-import { db } from "./db";
 import {
-  users, agencies, widgets, leads, notes,
+  UserModel, AgencyModel, WidgetModel, LeadModel, NoteModel, getNextId
+} from "./models";
+import {
   type User, type InsertUser,
   type Agency, type InsertAgency,
   type Widget, type InsertWidget,
@@ -8,7 +9,6 @@ import {
   type Note, type InsertNote,
   type LeadStatus
 } from "@shared/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User & Agency
@@ -17,7 +17,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   createAgency(agency: InsertAgency): Promise<Agency>;
   getAgencyUsers(agencyId: number): Promise<User[]>;
-  
+
   // Widgets
   getWidgets(agencyId: number): Promise<Widget[]>;
   getWidget(id: number): Promise<Widget | undefined>;
@@ -30,14 +30,14 @@ export interface IStorage {
   getLead(id: number): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: number, updates: Partial<Lead>): Promise<Lead>;
-  
+
   // Notes
   getNotes(leadId: number): Promise<Note[]>;
   createNote(note: InsertNote): Promise<Note>;
-  
+
   // Dashboard
   getAgencyStats(agencyId: number, days: number): Promise<any>;
-  
+
   sessionStore: any;
 }
 
@@ -49,94 +49,101 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    const user = await UserModel.findById(id);
+    return user ? user.toJSON() : undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
+    const user = await UserModel.findOne({ email });
+    return user ? user.toJSON() : undefined;
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
-    return newUser;
+    const id = await getNextId(UserModel);
+    const newUser = await UserModel.create({ ...user, _id: id });
+    return newUser.toJSON();
   }
 
   async createAgency(agency: InsertAgency): Promise<Agency> {
-    const [newAgency] = await db.insert(agencies).values(agency).returning();
-    return newAgency;
+    const id = await getNextId(AgencyModel);
+    const newAgency = await AgencyModel.create({ ...agency, _id: id });
+    return newAgency.toJSON();
   }
 
   async getAgencyUsers(agencyId: number): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.agencyId, agencyId));
+    const users = await UserModel.find({ agencyId });
+    return users.map(u => u.toJSON());
   }
 
   async getWidgets(agencyId: number): Promise<Widget[]> {
-    return await db.select().from(widgets).where(eq(widgets.agencyId, agencyId)).orderBy(desc(widgets.createdAt));
+    const widgets = await WidgetModel.find({ agencyId }).sort({ createdAt: -1 });
+    return widgets.map(w => w.toJSON());
   }
 
   async getWidget(id: number): Promise<Widget | undefined> {
-    const [widget] = await db.select().from(widgets).where(eq(widgets.id, id));
-    return widget;
+    const widget = await WidgetModel.findById(id);
+    return widget ? widget.toJSON() : undefined;
   }
 
   async createWidget(widget: InsertWidget): Promise<Widget> {
-    const [newWidget] = await db.insert(widgets).values(widget).returning();
-    return newWidget;
+    const id = await getNextId(WidgetModel);
+    const newWidget = await WidgetModel.create({ ...widget, _id: id });
+    return newWidget.toJSON();
   }
 
   async updateWidget(id: number, updates: Partial<InsertWidget>): Promise<Widget> {
-    const [updated] = await db.update(widgets).set(updates).where(eq(widgets.id, id)).returning();
-    return updated;
+    const updated = await WidgetModel.findByIdAndUpdate(id, updates, { new: true });
+    if (!updated) throw new Error("Widget not found");
+    return updated.toJSON();
   }
 
   async deleteWidget(id: number): Promise<void> {
-    await db.delete(widgets).where(eq(widgets.id, id));
+    await WidgetModel.findByIdAndDelete(id);
   }
 
   async getLeads(agencyId: number): Promise<Lead[]> {
-    return await db.select().from(leads).where(eq(leads.agencyId, agencyId)).orderBy(desc(leads.createdAt));
+    const leads = await LeadModel.find({ agencyId }).sort({ createdAt: -1 });
+    return leads.map(l => l.toJSON());
   }
 
   async getLead(id: number): Promise<Lead | undefined> {
-    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
-    return lead;
+    const lead = await LeadModel.findById(id);
+    return lead ? lead.toJSON() : undefined;
   }
 
   async createLead(lead: InsertLead): Promise<Lead> {
-    const [newLead] = await db.insert(leads).values(lead).returning();
-    return newLead;
+    const id = await getNextId(LeadModel);
+    const newLead = await LeadModel.create({ ...lead, _id: id });
+    return newLead.toJSON();
   }
 
   async updateLead(id: number, updates: Partial<Lead>): Promise<Lead> {
-    const [updated] = await db.update(leads).set(updates).where(eq(leads.id, id)).returning();
-    return updated;
+    const updated = await LeadModel.findByIdAndUpdate(id, updates, { new: true });
+    if (!updated) throw new Error("Lead not found");
+    return updated.toJSON();
   }
 
   async getNotes(leadId: number): Promise<Note[]> {
-    return await db.select().from(notes).where(eq(notes.leadId, leadId)).orderBy(desc(notes.createdAt));
+    const notes = await NoteModel.find({ leadId }).sort({ createdAt: -1 });
+    return notes.map(n => n.toJSON());
   }
 
   async createNote(note: InsertNote): Promise<Note> {
-    const [newNote] = await db.insert(notes).values(note).returning();
-    return newNote;
+    const id = await getNextId(NoteModel);
+    const newNote = await NoteModel.create({ ...note, _id: id });
+    return newNote.toJSON();
   }
-  
+
   async getAgencyStats(agencyId: number, days: number): Promise<any> {
-    // Simple aggregation for MVP
     const agencyLeads = await this.getLeads(agencyId);
-    
-    // Total leads
+
     const totalLeads = agencyLeads.length;
-    
-    // Leads by status
+
     const leadsByStatus = agencyLeads.reduce((acc, lead) => {
       acc[lead.status] = (acc[lead.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
-    // Leads by widget
+
     const leadsByWidget = agencyLeads.reduce((acc, lead) => {
       const widgetKey = String(lead.widgetId);
       acc[widgetKey] = (acc[widgetKey] || 0) + 1;

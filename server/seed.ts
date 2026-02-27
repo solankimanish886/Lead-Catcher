@@ -1,48 +1,56 @@
 import { db } from "./db";
-import { users, agencies, widgets, leads, notes } from "@shared/schema";
+import { UserModel, AgencyModel, WidgetModel, LeadModel, getNextId } from "./models";
 import { hash } from "bcryptjs";
 
 async function seed() {
   console.log("Seeding database...");
 
   // Check if data exists
-  const existingUsers = await db.select().from(users).limit(1);
+  const existingUsers = await UserModel.find().limit(1);
   if (existingUsers.length > 0) {
     console.log("Database already seeded.");
     return;
   }
 
   // Create Agency
-  const [agency] = await db.insert(agencies).values({
+  const agencyId = await getNextId(AgencyModel);
+  const agency = await AgencyModel.create({
+    _id: agencyId,
     name: "Demo Agency",
-  }).returning();
+  });
 
   // Create Owner
   const hashedPassword = await hash("password123", 10);
-  const [owner] = await db.insert(users).values({
+  const ownerId = await getNextId(UserModel);
+  const owner = await UserModel.create({
+    _id: ownerId,
     email: "demo@leadcatcher.com",
     password: hashedPassword,
     name: "Jane Doe",
     role: "owner",
-    agencyId: agency.id,
-  }).returning();
+    agencyId: agency._id,
+  });
 
   console.log("Created owner:", owner.email);
 
   // Create Rep
-  const [rep] = await db.insert(users).values({
+  const repId = ownerId + 1;
+  const rep = await UserModel.create({
+    _id: repId,
     email: "rep@leadcatcher.com",
     password: hashedPassword,
     name: "John Smith",
     role: "rep",
-    agencyId: agency.id,
-  }).returning();
+    agencyId: agency._id,
+  });
 
   console.log("Created rep:", rep.email);
 
   // Create Widget
-  const [widget] = await db.insert(widgets).values({
-    agencyId: agency.id,
+  const widgetId = await getNextId(WidgetModel);
+  const widget = await WidgetModel.create({
+    _id: widgetId,
+    agencyId: agency._id,
     name: "Contact Us Form",
     fields: [
       { key: "name", label: "Full Name", type: "text", required: true },
@@ -51,14 +59,16 @@ async function seed() {
     ],
     headingText: "Get in touch with us",
     primaryColor: "#0f172a",
-  }).returning();
+  });
 
   console.log("Created widget:", widget.name);
 
   // Create Leads
-  const [lead1] = await db.insert(leads).values({
-    agencyId: agency.id,
-    widgetId: widget.id,
+  const lead1Id = await getNextId(LeadModel);
+  await LeadModel.create({
+    _id: lead1Id,
+    agencyId: agency._id,
+    widgetId: widget._id,
     name: "Alice Johnson",
     email: "alice@example.com",
     formResponses: {
@@ -67,11 +77,13 @@ async function seed() {
       message: "Interested in your services.",
     },
     status: "new",
-  }).returning();
+  });
 
-  const [lead2] = await db.insert(leads).values({
-    agencyId: agency.id,
-    widgetId: widget.id,
+  const lead2Id = lead1Id + 1;
+  await LeadModel.create({
+    _id: lead2Id,
+    agencyId: agency._id,
+    widgetId: widget._id,
     name: "Bob Williams",
     email: "bob@example.com",
     formResponses: {
@@ -80,12 +92,13 @@ async function seed() {
       message: "Can you send pricing?",
     },
     status: "contacted",
-    assignedTo: rep.id,
-  }).returning();
+    assignedTo: rep._id,
+  });
 
   console.log("Created leads");
 
   console.log("Seeding complete!");
+  process.exit(0);
 }
 
 seed().catch((err) => {

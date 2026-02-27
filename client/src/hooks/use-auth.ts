@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type LoginRequest, type RegisterRequest } from "@shared/routes";
+import { api } from "@shared/routes";
+import { type LoginRequest, type RegisterRequest } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export function useAuth() {
@@ -37,10 +38,10 @@ export function useAuth() {
       toast({ title: "Welcome back!", description: `Logged in as ${user.name}` });
     },
     onError: (error) => {
-      toast({ 
-        title: "Login failed", 
-        description: error.message, 
-        variant: "destructive" 
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive"
       });
     },
   });
@@ -56,8 +57,8 @@ export function useAuth() {
       });
       if (!res.ok) {
         if (res.status === 400) {
-            const err = await res.json();
-            throw new Error(err.message || "Registration failed");
+          const err = await res.json();
+          throw new Error(err.message || "Registration failed");
         }
         throw new Error("Registration failed");
       }
@@ -68,11 +69,11 @@ export function useAuth() {
       toast({ title: "Account created", description: "Welcome to LeadCatcher!" });
     },
     onError: (error) => {
-        toast({ 
-            title: "Registration failed", 
-            description: error.message, 
-            variant: "destructive" 
-        });
+      toast({
+        title: "Registration failed",
+        description: error.message,
+        variant: "destructive"
+      });
     },
   });
 

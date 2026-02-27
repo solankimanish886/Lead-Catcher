@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type CreateWidgetRequest, type UpdateWidgetRequest } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
+import { type Widget, type CreateWidgetRequest, type UpdateWidgetRequest } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export function useWidgets() {
@@ -31,12 +32,10 @@ export function useCreateWidget() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: CreateWidgetRequest) => {
-      // Omit agencyId as it's handled by session on backend
-      const { agencyId, ...rest } = data; 
       const res = await fetch(api.widgets.create.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(rest),
+        body: JSON.stringify(data),
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to create widget");
@@ -56,11 +55,10 @@ export function useUpdateWidget() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: UpdateWidgetRequest }) => {
       const url = buildUrl(api.widgets.update.path, { id });
-      const { agencyId, ...rest } = data;
       const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(rest),
+        body: JSON.stringify(data),
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to update widget");
