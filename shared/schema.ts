@@ -8,6 +8,8 @@ export const insertUserSchema = z.object({
   name: z.string().min(1),
   role: z.enum(["owner", "rep"]).default("owner"),
   agencyId: z.number(),
+  resetPasswordToken: z.string().optional().nullable(),
+  resetPasswordExpiry: z.date().optional().nullable(),
 });
 
 export const insertAgencySchema = z.object({
@@ -20,6 +22,7 @@ export const insertWidgetSchema = z.object({
   fields: z.array(z.any()).default([]),
   primaryColor: z.string().default("#000000").optional(),
   headingText: z.string().optional().nullable(),
+  formId: z.string().optional().nullable(),
 });
 
 export const insertLeadSchema = z.object({
@@ -64,9 +67,9 @@ export type LeadStatus = "new" | "contacted" | "qualified" | "converted" | "clos
 export interface WidgetField {
   key: string;
   label: string;
-  type: "text" | "email" | "phone" | "textarea" | "dropdown";
+  type: "text" | "email" | "phone" | "textarea" | "dropdown" | "radio" | "checkbox" | "date" | "number" | "file_upload";
   required: boolean;
-  options?: string[]; // for dropdown
+  options?: string[]; // for dropdown, radio, checkbox
 }
 
 export type CreateWidgetRequest = Omit<InsertWidget, "agencyId"> & { fields: WidgetField[] };

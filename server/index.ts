@@ -3,11 +3,35 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { Server } from "socket.io";
 import { connectDB } from "./db";
 
 const app = express();
 export { app };
 const httpServer = createServer(app);
+
+// Initialize Socket.io
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5173", "http://127.0.0.1:5173"],
+    credentials: true
+  }
+});
+
+// Socket.io room management
+io.on("connection", (socket) => {
+  socket.on("join:dashboard", (userId: number) => {
+    socket.join(`user:${userId}`);
+    log(`User ${userId} joined their dashboard room`, "socket");
+  });
+
+  socket.on("disconnect", () => {
+    // Clean up if needed
+  });
+});
+
+// Attach io to app for use in routes
+app.set("io", io);
 
 declare module "http" {
   interface IncomingMessage {
@@ -67,7 +91,7 @@ app.use((req, res, next) => {
     // Connect to MongoDB FIRST before handling any requests
     await connectDB();
 
-    await registerRoutes(httpServer, app);
+    await registerRoutes(httpServer, app, io);
 
     app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
       const status = err.status || err.statusCode || 500;

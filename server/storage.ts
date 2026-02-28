@@ -14,7 +14,9 @@ export interface IStorage {
   // User & Agency
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<User>): Promise<User>;
   createAgency(agency: InsertAgency): Promise<Agency>;
   getAgencyUsers(agencyId: number): Promise<User[]>;
 
@@ -22,6 +24,7 @@ export interface IStorage {
   getWidgets(agencyId: number): Promise<Widget[]>;
   getWidget(id: number): Promise<Widget | undefined>;
   createWidget(widget: InsertWidget): Promise<Widget>;
+  getWidgetByFormId(formId: string): Promise<Widget | undefined>;
   updateWidget(id: number, widget: Partial<InsertWidget>): Promise<Widget>;
   deleteWidget(id: number): Promise<void>;
 
@@ -58,10 +61,21 @@ export class DatabaseStorage implements IStorage {
     return user ? user.toJSON() : undefined;
   }
 
+  async getUserByToken(token: string): Promise<User | undefined> {
+    const user = await UserModel.findOne({ resetPasswordToken: token });
+    return user ? user.toJSON() : undefined;
+  }
+
   async createUser(user: InsertUser): Promise<User> {
     const id = await getNextId(UserModel);
     const newUser = await UserModel.create({ ...user, _id: id });
     return newUser.toJSON();
+  }
+
+  async updateUser(id: number, updates: Partial<User>): Promise<User> {
+    const updatedUser = await UserModel.findByIdAndUpdate(id, updates, { new: true });
+    if (!updatedUser) throw new Error("User not found");
+    return updatedUser.toJSON();
   }
 
   async createAgency(agency: InsertAgency): Promise<Agency> {
@@ -86,9 +100,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWidget(widget: InsertWidget): Promise<Widget> {
+    const { nanoid } = await import('nanoid');
     const id = await getNextId(WidgetModel);
-    const newWidget = await WidgetModel.create({ ...widget, _id: id });
+    const formId = widget.formId || nanoid(10);
+    const newWidget = await WidgetModel.create({ ...widget, _id: id, formId });
     return newWidget.toJSON();
+  }
+
+  async getWidgetByFormId(formId: string): Promise<Widget | undefined> {
+    const widget = await WidgetModel.findOne({ formId });
+    return widget ? widget.toJSON() : undefined;
   }
 
   async updateWidget(id: number, updates: Partial<InsertWidget>): Promise<Widget> {

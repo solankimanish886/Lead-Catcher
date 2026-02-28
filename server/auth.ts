@@ -6,6 +6,7 @@ import { MongoStore } from "connect-mongo";
 import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { sendResetEmail } from "./mail";
 
 const scryptAsync = promisify(scrypt);
 
@@ -159,6 +160,58 @@ export function setupAuth(app: Express) {
       res.json(safeUser);
     } else {
       res.status(401).json({ message: "Not authenticated" });
+    }
+  });
+
+  // Forgot Password
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await storage.getUserByEmail(email);
+
+      if (!user) {
+        // We don't want to reveal if a user exists or not for security
+        return res.json({ message: "If an account exists with that email, a reset link has been sent." });
+      }
+
+      const token = randomBytes(32).toString("hex");
+      const expiry = new Date(Date.now() + 3600000); // 1 hour
+
+      await storage.updateUser(user.id, {
+        resetPasswordToken: token,
+        resetPasswordExpiry: expiry,
+      });
+
+      await sendResetEmail(email, token);
+
+      res.json({ message: "Reset link sent" });
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      res.status(500).json({ message: "An error occurred. Please try again later." });
+    }
+  });
+
+  // Reset Password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      const user = await storage.getUserByToken(token);
+
+      if (!user || !user.resetPasswordExpiry || user.resetPasswordExpiry < new Date()) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      const hashedPassword = await hash(newPassword, 10);
+      await storage.updateUser(user.id, {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpiry: null,
+      });
+
+      res.json({ message: "Password reset successful" });
+    } catch (err) {
+      console.error("Reset password error:", err);
+      res.status(500).json({ message: "An error occurred. Please try again later." });
     }
   });
 }

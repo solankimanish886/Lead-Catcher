@@ -18,8 +18,8 @@ export default function NotFound() {
           </p>
 
           <div className="mt-6">
-            <Link href="/">
-                <Button className="w-full">Return to Home</Button>
+            <Link href="/dashboard">
+              <Button className="w-full">Return to Home</Button>
             </Link>
           </div>
         </CardContent>

@@ -202,6 +202,14 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    getForm: {
+      method: 'GET' as const,
+      path: '/api/public/forms/:id',
+      responses: {
+        200: z.custom<Widget>(),
+        404: errorSchemas.notFound,
+      },
+    },
     submitLead: {
       method: 'POST' as const,
       path: '/api/public/leads',

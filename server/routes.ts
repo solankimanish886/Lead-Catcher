@@ -1,5 +1,6 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
+import express, { type Express } from "express";
+import { createServer, type Server as HttpServer } from "http";
+import { Server as SocketServer } from "socket.io";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { User } from "@shared/schema";
@@ -7,12 +8,19 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 
 export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
+  httpServer: HttpServer,
+  app: Express,
+  io: SocketServer
+): Promise<HttpServer> {
 
   // Set up authentication first
   setupAuth(app);
+
+  // Attach io to req for easy access in handlers
+  app.use((req: any, _res, next) => {
+    req.io = io;
+    next();
+  });
 
   // === PROTECTED ROUTES (require auth) ===
 
@@ -162,6 +170,15 @@ export async function registerRoutes(
 
     const input = api.leads.update.input.parse(req.body);
     const updated = await storage.updateLead(lead.id, input);
+
+    // Real-time update
+    const users = await storage.getAgencyUsers(user.agencyId);
+    console.log(`[Server Socket] Emitting lead:updated for lead ${updated.id} to ${users.length} users in agency ${user.agencyId}`);
+    users.forEach(u => {
+      console.log(`[Server Socket] Emitting to user:${u.id} room`);
+      io.to(`user:${u.id}`).emit("lead:updated", updated);
+    });
+
     res.json(updated);
   });
 
@@ -179,6 +196,15 @@ export async function registerRoutes(
       authorId: user.id,
       content: input.content,
     });
+
+    // Real-time update
+    const users = await storage.getAgencyUsers(user.agencyId);
+    console.log(`[Server Socket] Emitting lead:updated (note) for lead ${lead.id} to ${users.length} users in agency ${user.agencyId}`);
+    users.forEach(u => {
+      console.log(`[Server Socket] Emitting to user:${u.id} room`);
+      io.to(`user:${u.id}`).emit("lead:updated", { ...lead, lastNote: note });
+    });
+
     res.status(201).json(note);
   });
 
@@ -196,6 +222,14 @@ export async function registerRoutes(
   const submissionLog = new Map<string, number[]>();
   const WINDOW_MS = 60 * 60 * 1000; // 1 hour
   const MAX_SUBMISSIONS = 10;
+
+  app.get(api.public.getForm.path, async (req, res) => {
+    const widget = await storage.getWidgetByFormId(req.params.id as string);
+    if (!widget) {
+      return res.status(404).json({ message: "Form not found" });
+    }
+    res.json(widget);
+  });
 
   app.get(api.public.getWidget.path, async (req, res) => {
     const widget = await storage.getWidget(Number(req.params.id));
@@ -239,7 +273,7 @@ export async function registerRoutes(
     const name = input.formResponses['name'] || input.formResponses['Name'];
     const phone = input.formResponses['phone'] || input.formResponses['Phone'];
 
-    await storage.createLead({
+    const lead = await storage.createLead({
       agencyId: widget.agencyId,
       widgetId: widget.id,
       formResponses: input.formResponses,
@@ -247,6 +281,18 @@ export async function registerRoutes(
       name: typeof name === 'string' ? name : undefined,
       phone: typeof phone === 'string' ? phone : undefined,
       status: "new",
+    });
+
+    // Real-time updates
+    const users = await storage.getAgencyUsers(widget.agencyId);
+    const stats = await storage.getAgencyStats(widget.agencyId, 30);
+
+    console.log(`[Server Socket] New Lead captured! Emitting to ${users.length} users in agency ${widget.agencyId}`);
+    users.forEach(u => {
+      console.log(`[Server Socket] Emitting lead:new and stats:update to user:${u.id} room`);
+      io.to(`user:${u.id}`).emit("lead:new", lead);
+      io.to(`user:${u.id}`).emit("submission:new", lead);
+      io.to(`user:${u.id}`).emit("stats:update", stats);
     });
 
     res.status(201).json({ success: true });

@@ -17,6 +17,8 @@ const UserSchema = new Schema({
     name: { type: String, required: true },
     role: { type: String, enum: ['owner', 'rep'], default: 'owner' },
     agencyId: { type: Number, required: true },
+    resetPasswordToken: { type: String },
+    resetPasswordExpiry: { type: Date },
     createdAt: { type: Date, default: Date.now },
 }, {
     toJSON: { transform: transformToJSON },
@@ -45,6 +47,7 @@ const WidgetSchema = new Schema({
     fields: { type: [Schema.Types.Mixed], default: [] },
     primaryColor: { type: String, default: "#000000" },
     headingText: { type: String },
+    formId: { type: String, unique: true },
     createdAt: { type: Date, default: Date.now },
 }, {
     toJSON: { transform: transformToJSON },
