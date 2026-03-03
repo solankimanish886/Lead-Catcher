@@ -102,6 +102,7 @@ export class DatabaseStorage implements IStorage {
   async createWidget(widget: InsertWidget): Promise<Widget> {
     const { nanoid } = await import('nanoid');
     const id = await getNextId(WidgetModel);
+    // Ensure formId is always generated if not provided
     const formId = widget.formId || nanoid(10);
     const newWidget = await WidgetModel.create({ ...widget, _id: id, formId });
     return newWidget.toJSON();
@@ -113,6 +114,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateWidget(id: number, updates: Partial<InsertWidget>): Promise<Widget> {
+    const existing = await WidgetModel.findById(id);
+    if (!existing) throw new Error("Widget not found");
+
+    // If existing widget doesn't have a formId, generate one now
+    if (!existing.formId) {
+      const { nanoid } = await import('nanoid');
+      updates.formId = nanoid(10);
+    }
+
     const updated = await WidgetModel.findByIdAndUpdate(id, updates, { new: true });
     if (!updated) throw new Error("Widget not found");
     return updated.toJSON();

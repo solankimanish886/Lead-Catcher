@@ -12,6 +12,7 @@ import WidgetBuilder from "@/pages/WidgetBuilder";
 import EmbedForm from "@/pages/EmbedForm";
 import LeadsPage from "@/pages/Leads";
 import LeadDetail from "@/pages/LeadDetail";
+import PublicForm from "@/pages/PublicForm";
 import TeamPage from "@/pages/Team";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/embed/:id" component={EmbedForm} />
+      <Route path="/f/:id" component={PublicForm} />
 
       {/* Protected Routes */}
       <Route path="/dashboard">

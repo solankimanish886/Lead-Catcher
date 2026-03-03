@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { WidgetField } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { getAppUrl } from "@/lib/env";
 
 export default function WidgetBuilder() {
   const [match, params] = useRoute("/widgets/:id/edit");
@@ -24,7 +25,9 @@ export default function WidgetBuilder() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [publishedForm, setPublishedForm] = useState<{ formId: string } | null>(null);
+  const [publishedForm, setPublishedForm] = useState<any | null>(null);
+
+  const appUrl = getAppUrl();
 
   const [name, setName] = useState("");
   const [headingText, setHeadingText] = useState("Contact Us");
@@ -92,8 +95,12 @@ export default function WidgetBuilder() {
     }
   };
 
-  const embedCode = isEditing
-    ? `<iframe src="${window.location.origin}/embed/${widgetId}" width="100%" height="600" frameborder="0"></iframe>`
+  const embedUrl = existingWidget?.formId
+    ? `${appUrl}/f/${existingWidget.formId}`
+    : `${appUrl}/f/undefined`;
+
+  const embedCode = isEditing && existingWidget?.formId
+    ? `<iframe src="${embedUrl}" width="100%" height="600" frameborder="0" style="border-radius: 12px;"></iframe>`
     : "Save widget to generate embed code";
 
   const copyEmbed = () => {
@@ -434,14 +441,14 @@ export default function WidgetBuilder() {
                     <div className="flex gap-2 p-2 bg-white/5 border border-white/10 rounded-2xl group transition-all hover:border-white/20">
                       <Input
                         readOnly
-                        value={`${window.location.origin}/f/${publishedForm.formId}`}
+                        value={`${appUrl}/f/${publishedForm.formId}`}
                         className="bg-transparent border-0 text-white font-mono text-xs focus:ring-0"
                       />
                       <Button
                         size="sm"
                         className="bg-mongodb-green text-mongodb-deep-slate font-black hover:scale-105 transition-transform"
                         onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/f/${publishedForm.formId}`);
+                          navigator.clipboard.writeText(`${appUrl}/f/${publishedForm.formId}`);
                           toast({ title: "Copied!", description: "Public URL copied to clipboard." });
                         }}
                       >
@@ -457,7 +464,7 @@ export default function WidgetBuilder() {
                       <textarea
                         readOnly
                         rows={3}
-                        value={`<iframe src="${window.location.origin}/f/${publishedForm.formId}" width="100%" height="600" frameborder="0" style="border-radius: 12px;"></iframe>`}
+                        value={`<iframe src="${appUrl}/f/${publishedForm.formId}" width="100%" height="600" frameborder="0" style="border-radius: 12px;"></iframe>`}
                         className="w-full bg-transparent border-0 text-white/70 font-mono text-[10px] focus:ring-0 p-3 resize-none custom-scrollbar"
                       />
                       <Button
@@ -465,7 +472,7 @@ export default function WidgetBuilder() {
                         variant="ghost"
                         className="absolute top-2 right-2 text-white/30 hover:text-white hover:bg-white/10"
                         onClick={() => {
-                          navigator.clipboard.writeText(`<iframe src="${window.location.origin}/f/${publishedForm.formId}" width="100%" height="600" frameborder="0" style="border-radius: 12px;"></iframe>`);
+                          navigator.clipboard.writeText(`<iframe src="${appUrl}/f/${publishedForm.formId}" width="100%" height="600" frameborder="0" style="border-radius: 12px;"></iframe>`);
                           toast({ title: "Copied!", description: "Embed code copied to clipboard." });
                         }}
                       >
