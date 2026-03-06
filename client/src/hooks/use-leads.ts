@@ -4,17 +4,12 @@ import { type InsertLead, type Lead, type UpdateLeadRequest } from "@shared/sche
 
 import { useToast } from "@/hooks/use-toast";
 
-export function useLeads(filters?: { status?: string; search?: string }) {
-  const queryKey = [api.leads.list.path, filters?.status, filters?.search];
+export function useLeads() {
+  const queryKey = [api.leads.list.path];
   return useQuery({
     queryKey,
     queryFn: async () => {
-      let url = api.leads.list.path;
-      const params = new URLSearchParams();
-      if (filters?.status && filters.status !== "all") params.append("status", filters.status);
-      if (filters?.search) params.append("search", filters.search);
-      if (params.toString()) url += `? ${params.toString()} `;
-
+      const url = api.leads.list.path;
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch leads");
       return api.leads.list.responses[200].parse(await res.json());

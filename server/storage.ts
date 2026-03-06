@@ -17,6 +17,7 @@ export interface IStorage {
   getUserByToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<User>): Promise<User>;
+  deleteUser(id: number): Promise<void>;
   createAgency(agency: InsertAgency): Promise<Agency>;
   getAgencyUsers(agencyId: number): Promise<User[]>;
 
@@ -76,6 +77,10 @@ export class DatabaseStorage implements IStorage {
     const updatedUser = await UserModel.findByIdAndUpdate(id, updates, { new: true });
     if (!updatedUser) throw new Error("User not found");
     return updatedUser.toJSON();
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await UserModel.findByIdAndDelete(id);
   }
 
   async createAgency(agency: InsertAgency): Promise<Agency> {

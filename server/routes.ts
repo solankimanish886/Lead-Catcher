@@ -61,9 +61,59 @@ export async function registerRoutes(
       ...input,
       agencyId: user.agencyId,
       role: 'rep', // Default role for invites
+      status: 'active',
     });
 
     res.status(201).json(newUser);
+  });
+
+  app.put(api.team.update.path, requireAuth, async (req, res) => {
+    const user = req.user as User;
+    if (user.role !== 'owner') {
+      return res.status(403).json({ message: "Only owners can manage team members" });
+    }
+
+    const targetId = Number(req.params.id);
+    const target = await storage.getUser(targetId);
+
+    if (!target || target.agencyId !== user.agencyId) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    const input = api.team.update.input.parse(req.body);
+
+    // Security: Owner cannot deactivate themselves
+    if (target.id === user.id && input.status === 'inactive') {
+      return res.status(400).json({ message: "You cannot deactivate yourself" });
+    }
+
+    // Security: Only owner can change roles
+    // (Already checked user.role === 'owner', but adding logic here if needed)
+
+    const updated = await storage.updateUser(targetId, input);
+    res.json(updated);
+  });
+
+  app.delete(api.team.delete.path, requireAuth, async (req, res) => {
+    const user = req.user as User;
+    if (user.role !== 'owner') {
+      return res.status(403).json({ message: "Only owners can remove members" });
+    }
+
+    const targetId = Number(req.params.id);
+    const target = await storage.getUser(targetId);
+
+    if (!target || target.agencyId !== user.agencyId) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    // Security: Cannot remove yourself
+    if (target.id === user.id) {
+      return res.status(400).json({ message: "You cannot remove yourself" });
+    }
+
+    await storage.deleteUser(targetId);
+    res.sendStatus(200);
   });
 
   // Widgets
@@ -157,7 +207,24 @@ export async function registerRoutes(
     }
 
     const notes = await storage.getNotes(lead.id);
-    res.json({ ...lead, notes });
+    const enrichedNotes = await Promise.all(notes.map(async (note) => {
+      const author = await storage.getUser(note.authorId);
+      return { ...note, authorName: author?.name };
+    }));
+
+    const widget = await storage.getWidget(lead.widgetId);
+    let assigneeName = undefined;
+    if (lead.assignedTo) {
+      const assignee = await storage.getUser(lead.assignedTo);
+      assigneeName = assignee?.name;
+    }
+
+    res.json({
+      ...lead,
+      notes: enrichedNotes,
+      widgetName: widget?.name,
+      assigneeName
+    });
   });
 
   app.put(api.leads.update.path, requireAuth, async (req, res) => {

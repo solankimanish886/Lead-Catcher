@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
@@ -33,5 +33,58 @@ export function useInviteMember() {
       toast({ title: "Invited", description: "Team member added successfully" });
     },
     onError: () => toast({ title: "Error", description: "Failed to invite member", variant: "destructive" }),
+  });
+}
+
+export function useUpdateMember() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const url = buildUrl(api.team.update.path, { id });
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to update member");
+      }
+      return api.team.update.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.team.list.path] });
+      toast({ title: "Success", description: "Member updated successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteMember() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.team.delete.path, { id });
+      const res = await fetch(url, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete member");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.team.list.path] });
+      toast({ title: "Success", description: "Member removed successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 }

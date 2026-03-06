@@ -10,6 +10,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const COLORS = ['#00ED64', '#00A2D5', '#FFB500', '#E03C31', '#5C6C75'];
 
@@ -24,6 +25,13 @@ export default function Dashboard() {
 
   const pieData = Object.entries(stats.leadsByStatus).map(([name, value]) => ({ name, value }));
   const barData = Object.entries(stats.leadsByWidget).map(([name, value]) => ({ name, value }));
+
+  // Compute response rate: % of leads that have been acted on (contacted, qualified, or converted)
+  const totalLeads = stats.totalLeads || 0;
+  const respondedLeads = (stats.leadsByStatus['contacted'] || 0) + (stats.leadsByStatus['qualified'] || 0) + (stats.leadsByStatus['converted'] || 0);
+  const responseRate = totalLeads > 0 ? `${Math.round((respondedLeads / totalLeads) * 100)}%` : "N/A";
+  const responseRateTrend = totalLeads > 0 ? `${respondedLeads}/${totalLeads} leads` : "No data yet";
+  const responseRateTrendUp = totalLeads > 0 && respondedLeads / totalLeads >= 0.5;
 
   return (
     <motion.div
@@ -46,7 +54,7 @@ export default function Dashboard() {
         <StatCard title="Total Leads" value={stats.totalLeads} icon={Users} trend="+12.5%" trendUp={true} />
         <StatCard title="New Leads" value={stats.leadsByStatus['new'] || 0} icon={Filter} trend="Action required" trendUp={false} />
         <StatCard title="Conversion" value={`${calculateConversion(stats)}%`} icon={TrendingUp} trend="+2.4%" trendUp={true} />
-        <StatCard title="Response Time" value="2.4h" icon={Clock} trend="-15 min" trendUp={true} />
+        <StatCard title="Response Rate" value={responseRate} icon={Clock} trend={responseRateTrend} trendUp={responseRateTrendUp} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
@@ -108,7 +116,11 @@ export default function Dashboard() {
         <CardContent className="p-0">
           <div className="divide-y divide-mongodb-border-slate/30">
             {stats.recentLeads.length === 0 ? (
-              <div className="text-center py-12 text-mongodb-slate-text font-medium">No leads captured yet.</div>
+              <EmptyState
+                title="No Leads Captured"
+                description="You haven't captured any leads yet. Deploy a form to start collecting lead data."
+                className="py-12"
+              />
             ) : (
               <AnimatePresence mode="popLayout" initial={false}>
                 {stats.recentLeads.map((lead) => (
@@ -149,6 +161,7 @@ export default function Dashboard() {
     </motion.div >
   );
 }
+
 
 function StatCard({ title, value, icon: Icon, trend, trendUp }: { title: string, value: string | number, icon: any, trend: string, trendUp: boolean }) {
   return (

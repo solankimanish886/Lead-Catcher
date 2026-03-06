@@ -11,6 +11,7 @@ import { ArrowLeft, User, Mail, Phone, Calendar, Send, MessageSquare, Briefcase,
 import { format, formatDistanceToNow } from "date-fns";
 import type { LeadStatus } from "@shared/schema";
 import { motion } from "framer-motion";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function LeadDetail() {
     const [match, params] = useRoute("/leads/:id");
@@ -190,9 +191,11 @@ export default function LeadDetail() {
 
                                 <div className="space-y-8">
                                     {lead.notes?.length === 0 ? (
-                                        <div className="text-center py-20 text-mongodb-slate-text font-bold italic opacity-40">
-                                            No activity records found for this lead.
-                                        </div>
+                                        <EmptyState
+                                            title="No Activity Records"
+                                            description="No internal notes or activity records found for this lead."
+                                            className="py-12"
+                                        />
                                     ) : (
                                         lead.notes?.map((note) => (
                                             <div key={note.id} className="flex gap-4 group">
@@ -226,3 +229,4 @@ export default function LeadDetail() {
         </motion.div>
     );
 }
+

@@ -6,7 +6,8 @@ export const insertUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   name: z.string().min(1),
-  role: z.enum(["owner", "rep"]).default("owner"),
+  role: z.enum(["owner", "rep", "admin"]).default("owner"),
+  status: z.enum(["active", "inactive"]).default("active"),
   agencyId: z.number(),
   resetPasswordToken: z.string().optional().nullable(),
   resetPasswordExpiry: z.date().optional().nullable(),
@@ -22,7 +23,9 @@ export const insertWidgetSchema = z.object({
   fields: z.array(z.any()).default([]),
   primaryColor: z.string().default("#000000").optional(),
   headingText: z.string().optional().nullable(),
+  ctaText: z.string().max(40).optional().nullable(),
   formId: z.string().optional().nullable(),
+  status: z.enum(["active", "inactive", "draft"]).default("active"),
 });
 
 export const insertLeadSchema = z.object({
@@ -67,9 +70,15 @@ export type LeadStatus = "new" | "contacted" | "qualified" | "converted" | "clos
 export interface WidgetField {
   key: string;
   label: string;
-  type: "text" | "email" | "phone" | "textarea" | "dropdown" | "radio" | "checkbox" | "date" | "number" | "file_upload";
+  type: "text" | "email" | "phone" | "textarea" | "dropdown" | "radio" | "checkbox" | "date" | "date_time" | "number" | "file_upload" | "status";
   required: boolean;
-  options?: string[]; // for dropdown, radio, checkbox
+  options?: any[]; // for dropdown, radio, checkbox, status
+  // Metadata for validation/constraints
+  min?: number;
+  max?: number;
+  step?: number;
+  accept?: string;
+  maxSize?: number;
 }
 
 export type CreateWidgetRequest = Omit<InsertWidget, "agencyId"> & { fields: WidgetField[] };

@@ -5,10 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CheckCircle, ShieldCheck, Zap } from "lucide-react";
+import { Loader2, CheckCircle, ShieldCheck, Zap, Calendar as CalendarIcon, FileUp } from "lucide-react";
 import { useState } from "react";
 import type { WidgetField } from "@shared/schema";
 import { motion, AnimatePresence } from "framer-motion";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function EmbedForm() {
   const [match, params] = useRoute("/embed/:id");
@@ -49,11 +56,15 @@ export default function EmbedForm() {
     </div>
   );
 
-  if (!widget) return (
+  if (!widget || widget.status !== "active") return (
     <div className="flex h-screen items-center justify-center bg-[#F8FAFB]">
       <div className="p-8 bg-white rounded-3xl border border-red-100 shadow-xl text-center max-w-sm">
-        <h2 className="text-xl font-black text-red-600 mb-2">Interface Offline</h2>
-        <p className="text-sm font-medium text-slate-500">The requested lead capture module is either inactive or does not exist.</p>
+        <h2 className="text-xl font-black text-red-600 mb-2">Interface Unavailable</h2>
+        <p className="text-sm font-medium text-slate-500 truncate">
+          {widget?.status === 'draft'
+            ? "This Lead Catcher is currently in draft mode and not accepting public submissions."
+            : "The requested lead capture module is either inactive or does not exist."}
+        </p>
       </div>
     </div>
   );
@@ -114,35 +125,235 @@ export default function EmbedForm() {
                   {field.label} {field.required && <span className="text-red-500">*</span>}
                 </Label>
 
-                {field.type === 'textarea' ? (
-                  <textarea
-                    className="flex min-h-[120px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#001E2B] transition-all focus:ring-4 focus:ring-opacity-10 outline-none placeholder:text-slate-300"
-                    style={{ '--tw-ring-color': primaryColor } as any}
-                    required={field.required}
-                    placeholder={`Type your response...`}
-                    onChange={(e) => setFormState({ ...formState, [field.key]: e.target.value })}
-                  />
-                ) : field.type === 'dropdown' ? (
-                  <Select onValueChange={(val) => setFormState({ ...formState, [field.key]: val })}>
-                    <SelectTrigger className="h-12 rounded-2xl border-slate-200 font-bold text-[#001E2B] focus:ring-4 focus:ring-opacity-10 transition-all">
-                      <SelectValue placeholder="Select an option" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
-                      {(field.options || []).map((opt, idx) => (
-                        <SelectItem key={idx} value={opt} className="font-bold py-3">{opt}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    type={field.type}
-                    required={field.required}
-                    placeholder={`Enter ${field.label.toLowerCase()}...`}
-                    className="h-12 rounded-2xl border-slate-200 font-bold text-[#001E2B] focus:ring-4 focus:ring-opacity-10 transition-all placeholder:text-slate-300"
-                    style={{ '--tw-ring-color': primaryColor } as any}
-                    onChange={(e) => setFormState({ ...formState, [field.key]: e.target.value })}
-                  />
-                )}
+                {(() => {
+                  const placeholder = field.type === 'email' ? 'Enter email address...' :
+                    field.type === 'phone' ? 'Enter phone number...' :
+                      `Enter ${field.label.toLowerCase()}...`;
+
+                  const inputStyles = {
+                    '--tw-ring-color': primaryColor,
+                    borderColor: `${primaryColor}40`
+                  } as any;
+
+                  switch (field.type) {
+                    case 'textarea':
+                      return (
+                        <Textarea
+                          className="min-h-[120px] w-full rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#001E2B] transition-all focus:ring-4 focus:ring-opacity-10 outline-none placeholder:text-slate-300"
+                          style={inputStyles}
+                          required={field.required}
+                          placeholder={`Type your response...`}
+                          onChange={(e) => setFormState({ ...formState, [field.key]: e.target.value })}
+                        />
+                      );
+
+                    case 'dropdown':
+                      return (
+                        <Select onValueChange={(val) => setFormState({ ...formState, [field.key]: val })}>
+                          <SelectTrigger className="h-12 rounded-2xl border-slate-200 font-bold text-[#001E2B] focus:ring-4 focus:ring-opacity-10 transition-all bg-white" style={inputStyles}>
+                            <SelectValue placeholder="Select an option" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
+                            {(field.options || []).map((opt, idx) => (
+                              <SelectItem key={idx} value={opt} className="font-bold py-3">{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+
+                    case 'radio':
+                      return (
+                        <RadioGroup
+                          onValueChange={(val) => setFormState({ ...formState, [field.key]: val })}
+                          required={field.required}
+                          className="grid gap-3 pt-1"
+                        >
+                          {(field.options || []).map((opt, idx) => (
+                            <div key={idx} className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 transition-all hover:bg-white cursor-pointer">
+                              <RadioGroupItem value={opt} id={`embed-${field.key}-${idx}`} />
+                              <Label htmlFor={`embed-${field.key}-${idx}`} className="text-sm font-bold text-[#001E2B] cursor-pointer flex-1">{opt}</Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      );
+
+                    case 'checkbox':
+                      return (
+                        <div className="grid gap-3 pt-1">
+                          {(field.options || []).map((opt, idx) => (
+                            <div key={idx} className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 transition-all hover:bg-white cursor-pointer">
+                              <Checkbox
+                                id={`embed-cb-${field.key}-${idx}`}
+                                onCheckedChange={(checked) => {
+                                  const current = formState[field.key]?.split(',') || [];
+                                  const updated = checked
+                                    ? [...current.filter(Boolean), opt]
+                                    : current.filter((v: string) => v !== opt);
+                                  setFormState({ ...formState, [field.key]: updated.join(',') });
+                                }}
+                              />
+                              <Label htmlFor={`embed-cb-${field.key}-${idx}`} className="text-sm font-bold text-[#001E2B] cursor-pointer flex-1">{opt}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      );
+
+                    case 'date':
+                    case 'date_time':
+                      return (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full h-12 justify-start text-left font-bold rounded-2xl border-slate-200 bg-white px-4 transition-all focus:ring-4 focus:ring-opacity-10",
+                                !formState[field.key] && "text-slate-300"
+                              )}
+                              style={inputStyles}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                              {formState[field.key] ? format(new Date(formState[field.key]), field.type === 'date_time' ? "PPP p" : "PPP") : `Select ${field.type === 'date_time' ? 'date & time' : 'date'}`}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden shadow-2xl" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={formState[field.key] ? new Date(formState[field.key]) : undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const baseDate = formState[field.key] ? new Date(formState[field.key]) : new Date();
+                                  date.setHours(baseDate.getHours(), baseDate.getMinutes());
+                                  setFormState({ ...formState, [field.key]: date.toISOString() });
+                                }
+                              }}
+                              initialFocus
+                            />
+                            {field.type === 'date_time' && (
+                              <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time</span>
+                                <input
+                                  type="time"
+                                  className="text-xs font-bold text-[#001E2B] bg-white px-2 py-1 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-mongodb-green/20"
+                                  onChange={(e) => {
+                                    const date = formState[field.key] ? new Date(formState[field.key]) : new Date();
+                                    const [hours, minutes] = e.target.value.split(':');
+                                    date.setHours(parseInt(hours), parseInt(minutes));
+                                    setFormState({ ...formState, [field.key]: date.toISOString() });
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      );
+
+                    case 'number':
+                      return (
+                        <Input
+                          type="number"
+                          required={field.required}
+                          placeholder={placeholder}
+                          value={formState[field.key] || ""}
+                          min={field.min}
+                          max={field.max}
+                          step={field.step}
+                          onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-'].includes(e.key) && e.key !== '-') e.preventDefault();
+                            if (e.key === '-' && e.currentTarget.value.length > 0) e.preventDefault();
+                          }}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "" || !isNaN(Number(val))) {
+                              setFormState({ ...formState, [field.key]: val });
+                            }
+                          }}
+                          className="h-12 rounded-2xl border-slate-200 font-bold text-[#001E2B] focus:ring-4 focus:ring-opacity-10 transition-all placeholder:text-slate-300 bg-white"
+                          style={inputStyles}
+                        />
+                      );
+
+                    case 'file_upload':
+                      return (
+                        <div className="relative group">
+                          <input
+                            type="file"
+                            id={`embed-file-${field.key}`}
+                            className="hidden"
+                            required={field.required}
+                            accept={field.accept || ".pdf,.jpg,.png,.docx"}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (field.maxSize && file.size > field.maxSize * 1024 * 1024) {
+                                  alert(`File too large. Maximum size is ${field.maxSize}MB`);
+                                  return;
+                                }
+                                setFormState({ ...formState, [field.key]: file.name });
+                              }
+                            }}
+                          />
+                          <Label
+                            htmlFor={`embed-file-${field.key}`}
+                            className="border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 bg-slate-50 cursor-pointer transition-all hover:bg-slate-100/50 group"
+                            style={{ borderColor: `${primaryColor}30` }}
+                          >
+                            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md border border-slate-100 transition-transform group-hover:scale-110">
+                              <FileUp className="w-6 h-6 opacity-40 group-hover:opacity-100 transition-opacity" style={{ color: primaryColor }} />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-black uppercase tracking-widest text-[#001E2B]">
+                                {formState[field.key] || "Click to upload"}
+                              </p>
+                              <p className="text-[10px] font-bold text-slate-400 mt-1">Accepts PDF, JPG, PNG</p>
+                            </div>
+                          </Label>
+                        </div>
+                      );
+
+                    case 'status':
+                      return (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {(field.options || []).map((opt: any, idx) => {
+                            const label = typeof opt === 'object' ? opt.label : opt;
+                            const color = typeof opt === 'object' ? opt.color : '#cccccc';
+                            const isSelected = formState[field.key] === label;
+
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setFormState({ ...formState, [field.key]: label })}
+                                className={cn(
+                                  "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
+                                  isSelected ? "text-white shadow-lg scale-105" : "bg-transparent text-slate-400 hover:bg-slate-100/50"
+                                )}
+                                style={{
+                                  backgroundColor: isSelected ? color : 'transparent',
+                                  borderColor: color,
+                                  boxShadow: isSelected ? `0 4px 12px ${color}30` : 'none'
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+
+                    default:
+                      return (
+                        <Input
+                          type={field.type}
+                          required={field.required}
+                          placeholder={placeholder}
+                          value={formState[field.key] || ""}
+                          className="h-12 rounded-2xl border-slate-200 font-bold text-[#001E2B] focus:ring-4 focus:ring-opacity-10 transition-all placeholder:text-slate-300 bg-white"
+                          style={inputStyles}
+                          onChange={(e) => setFormState({ ...formState, [field.key]: e.target.value })}
+                        />
+                      );
+                  }
+                })()}
               </div>
             ))}
           </div>
@@ -158,7 +369,7 @@ export default function EmbedForm() {
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Transmitting...
               </div>
-            ) : "Verify & Submit Form"}
+            ) : (widget.ctaText || "Verify & Submit Form")}
           </Button>
 
           <div className="pt-4 border-t border-slate-50 text-center">

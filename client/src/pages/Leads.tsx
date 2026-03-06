@@ -11,12 +11,26 @@ import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRealtime } from "@/hooks/use-realtime";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function LeadsPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
 
-  const { data: leads, isLoading } = useLeads({ status: filterStatus, search });
+  const { data: allLeads, isLoading } = useLeads();
+
+  const filteredLeads = (allLeads || []).filter((lead: any) => {
+    // 1. Status Filter (AND logic)
+    const matchesStatus = filterStatus === "all" || lead.status === filterStatus;
+
+    // 2. Search Filter (AND logic) - case insensitive name/email
+    const query = search.toLowerCase().trim();
+    const nameMatch = (lead.name || "Anonymous").toLowerCase().includes(query);
+    const emailMatch = (lead.email || "").toLowerCase().includes(query);
+    const matchesSearch = !query || nameMatch || emailMatch;
+
+    return matchesStatus && matchesSearch;
+  });
 
   return (
     <motion.div
@@ -74,75 +88,102 @@ export default function LeadsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={5} className="text-center py-20 text-mongodb-slate-text font-medium italic">Scanning pipeline for leads...</TableCell></TableRow>
-            ) : leads?.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-20 text-mongodb-slate-text font-medium">No leads match your current filters.</TableCell></TableRow>
+            ) : filteredLeads.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-12">
+                  <EmptyState
+                    title="No Leads Found"
+                    description={search || filterStatus !== "all"
+                      ? "No leads match your current filters. Try adjusting your search or filters to see more results."
+                      : "Capture your first lead to start scaling your conversion pipeline."}
+                  />
+                </TableCell>
+              </TableRow>
             ) : (
               <AnimatePresence mode="popLayout" initial={false}>
-                {leads?.map((lead: any) => (
-                  <motion.tr
-                    key={lead.id}
-                    layout
-                    initial={{ opacity: 0, y: -20, backgroundColor: "#00ED6420" }}
-                    animate={{ opacity: 1, y: 0, backgroundColor: "transparent" }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{
-                      backgroundColor: { duration: 1.5 },
-                      default: { duration: 0.4, ease: "easeOut" }
-                    }}
-                    className="border-mongodb-border-slate/20 hover:bg-mongodb-light-slate/40 transition-colors group cursor-pointer relative"
-                  >
-                    <TableCell className="py-4 pl-6 relative">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-mongodb-green/10 flex items-center justify-center text-mongodb-green-dark font-bold group-hover:bg-mongodb-green group-hover:text-mongodb-deep-slate transition-all shadow-sm">
-                          {(lead.name || "A").charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <Link href={`/leads/${lead.id}`} className="block text-sm font-bold text-mongodb-deep-slate hover:text-mongodb-green-dark transition-colors">
-                            {lead.name || "Anonymous"}
-                          </Link>
-                          <p className="text-xs text-mongodb-slate-text font-medium">{lead.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-mongodb-light-slate border border-mongodb-border-slate/40 text-[11px] font-bold text-mongodb-deep-slate">
-                        <MessageSquare className="w-3 h-3 text-mongodb-green-dark" />
-                        {lead.widgetName || "General Form"}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4"><StatusBadge status={lead.status} /></TableCell>
-                    <TableCell className="py-4">
-                      {lead.assigneeName ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-7 w-7 rounded-full bg-mongodb-deep-slate flex items-center justify-center text-[10px] font-bold text-white uppercase border border-white shadow-sm">
-                            {lead.assigneeName.charAt(0)}
+                {filteredLeads.map((lead: any) => {
+                  const statusAccentColor =
+                    lead.status === 'new' ? '#00ED64' :
+                      lead.status === 'contacted' ? '#00A2D5' :
+                        lead.status === 'qualified' ? '#FFB500' :
+                          lead.status === 'converted' ? '#22c55e' :
+                            lead.status === 'closed_lost' ? '#E03C31' : '#9ca3af';
+
+                  return (
+                    <motion.tr
+                      key={lead.id}
+                      layout
+                      initial={{ opacity: 0, y: -20, backgroundColor: "#00ED6420" }}
+                      animate={{ opacity: 1, y: 0, backgroundColor: "transparent" }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{
+                        backgroundColor: { duration: 1.5 },
+                        default: { duration: 0.4, ease: "easeOut" }
+                      }}
+                      className="border-mongodb-border-slate/20 hover:bg-mongodb-light-slate/40 group cursor-pointer relative transition-colors"
+                      style={{ borderLeft: `3px solid ${statusAccentColor}` }}
+                    >
+                      <TableCell className="py-4 pl-5 relative">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-md transition-all group-hover:scale-110 duration-300"
+                            style={{
+                              backgroundColor: `${statusAccentColor}20`,
+                              color: statusAccentColor,
+                              boxShadow: `0 0 0 2px ${statusAccentColor}30`
+                            }}
+                          >
+                            {(lead.name || "A").charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-xs font-bold text-mongodb-deep-slate">{lead.assigneeName}</span>
+                          <div>
+                            <Link href={`/leads/${lead.id}`} className="block text-sm font-bold text-mongodb-deep-slate hover:text-mongodb-green-dark transition-colors">
+                              {lead.name || "Anonymous"}
+                            </Link>
+                            <p className="text-xs text-mongodb-slate-text font-medium">{lead.email}</p>
+                          </div>
                         </div>
-                      ) : (
-                        <span className="text-[11px] font-bold text-mongodb-slate-text uppercase opacity-40">Unassigned</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4 text-right pr-6">
-                      <div className="flex flex-col items-end">
-                        <span className="text-sm font-bold text-mongodb-deep-slate">
-                          {lead.createdAt ? format(new Date(lead.createdAt), "MMM d, yyyy") : 'Just now'}
-                        </span>
-                        <span className="text-[10px] text-mongodb-slate-text font-medium uppercase tracking-tighter">
-                          {lead.createdAt ? format(new Date(lead.createdAt), "h:mm a") : ''}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <td className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      <ChevronRight className="w-4 h-4 text-mongodb-green-dark" />
-                    </td>
-                  </motion.tr>
-                ))}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-mongodb-light-slate border border-mongodb-border-slate/40 text-[11px] font-bold text-mongodb-deep-slate group-hover:border-mongodb-green/30 group-hover:bg-mongodb-green/5 transition-all">
+                          <MessageSquare className="w-3 h-3 text-mongodb-green-dark" />
+                          {lead.widgetName || "General Form"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4"><StatusBadge status={lead.status} /></TableCell>
+                      <TableCell className="py-4">
+                        {lead.assigneeName ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-full bg-mongodb-deep-slate flex items-center justify-center text-[10px] font-bold text-white uppercase border border-white shadow-sm">
+                              {lead.assigneeName.charAt(0)}
+                            </div>
+                            <span className="text-xs font-bold text-mongodb-deep-slate">{lead.assigneeName}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-bold text-mongodb-slate-text uppercase opacity-40">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4 text-right pr-6">
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm font-bold text-mongodb-deep-slate">
+                            {lead.createdAt ? format(new Date(lead.createdAt), "MMM d, yyyy") : 'Just now'}
+                          </span>
+                          <span className="text-[10px] text-mongodb-slate-text font-medium uppercase tracking-tighter">
+                            {lead.createdAt ? format(new Date(lead.createdAt), "h:mm a") : ''}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <td className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <ChevronRight className="w-4 h-4 text-mongodb-green-dark" />
+                      </td>
+                    </motion.tr>
+                  );
+                })}
               </AnimatePresence>
             )}
           </TableBody>
         </Table>
       </div>
+
     </motion.div>
   );
 }

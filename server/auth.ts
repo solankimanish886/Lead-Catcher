@@ -120,6 +120,7 @@ export function setupAuth(app: Express) {
         name: req.body.name,
         role: "owner",
         agencyId: agency.id,
+        status: "active",
       });
 
       req.login(user, (err) => {

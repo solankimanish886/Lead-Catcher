@@ -88,6 +88,28 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/team/:id',
+      responses: {
+        200: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/team/:id',
+      input: z.object({
+        name: z.string().optional(),
+        email: z.string().email().optional(),
+        role: z.enum(["owner", "rep", "admin"]).optional(),
+        status: z.enum(["active", "inactive"]).optional(),
+      }),
+      responses: {
+        200: z.custom<User>(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   widgets: {
     list: {
@@ -148,7 +170,11 @@ export const api = {
       method: 'GET' as const,
       path: '/api/leads/:id',
       responses: {
-        200: z.custom<Lead & { notes: Note[] }>(),
+        200: z.custom<Lead & {
+          notes: (Note & { authorName?: string })[],
+          widgetName?: string,
+          assigneeName?: string
+        }>(),
         404: errorSchemas.notFound,
       },
     },
