@@ -310,35 +310,6 @@ export default function EmbedForm() {
                         </div>
                       );
 
-                    case 'status':
-                      return (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {(field.options || []).map((opt: any, idx) => {
-                            const label = typeof opt === 'object' ? opt.label : opt;
-                            const color = typeof opt === 'object' ? opt.color : '#cccccc';
-                            const isSelected = formState[field.key] === label;
-
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => setFormState({ ...formState, [field.key]: label })}
-                                className={cn(
-                                  "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
-                                  isSelected ? "text-white shadow-lg scale-105" : "bg-transparent text-slate-400 hover:bg-slate-100/50"
-                                )}
-                                style={{
-                                  backgroundColor: isSelected ? color : 'transparent',
-                                  borderColor: color,
-                                  boxShadow: isSelected ? `0 4px 12px ${color}30` : 'none'
-                                }}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
 
                     default:
                       return (

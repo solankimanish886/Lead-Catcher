@@ -70,9 +70,9 @@ export type LeadStatus = "new" | "contacted" | "qualified" | "converted" | "clos
 export interface WidgetField {
   key: string;
   label: string;
-  type: "text" | "email" | "phone" | "textarea" | "dropdown" | "radio" | "checkbox" | "date" | "date_time" | "number" | "file_upload" | "status";
+  type: "text" | "email" | "phone" | "textarea" | "dropdown" | "radio" | "checkbox" | "date" | "date_time" | "number" | "file_upload";
   required: boolean;
-  options?: any[]; // for dropdown, radio, checkbox, status
+  options?: any[]; // for dropdown, radio, checkbox
   // Metadata for validation/constraints
   min?: number;
   max?: number;

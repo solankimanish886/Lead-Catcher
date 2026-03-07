@@ -475,85 +475,50 @@ export default function WidgetBuilder() {
                               <SelectItem value="date_time" className="font-bold">Date & Time</SelectItem>
                               <SelectItem value="number" className="font-bold">Number</SelectItem>
                               <SelectItem value="file_upload" className="font-bold">File Upload</SelectItem>
-                              <SelectItem value="status" className="font-bold text-mongodb-green">Status Pills</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
 
                       {/* Options Builder for Choice-based types */}
-                      {(field.type === 'dropdown' || field.type === 'radio' || field.type === 'checkbox' || field.type === 'status') && (
+                      {(field.type === 'dropdown' || field.type === 'radio' || field.type === 'checkbox') && (
                         <div className="space-y-3 bg-mongodb-light-slate/10 p-4 rounded-xl border border-mongodb-border-slate/20">
-                          <Label className="text-[10px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">Options {field.type === 'status' && "(with colors)"}</Label>
+                          <Label className="text-[10px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">Options</Label>
                           <div className="space-y-2">
-                            {(field.options || (field.type === 'status'
-                              ? [{ label: 'Active', color: '#00ED64' }, { label: 'Pending', color: '#F9D800' }, { label: 'Inactive', color: '#6B8F8F' }]
-                              : ['Option 1', 'Option 2'])).map((opt, optIndex) => (
-                                <div key={optIndex} className="flex items-center gap-2">
-                                  {field.type === 'status' ? (
-                                    <>
-                                      <div
-                                        className="w-8 h-10 rounded-lg border border-mongodb-border-slate/40 shrink-0 relative overflow-hidden"
-                                        style={{ backgroundColor: typeof opt === 'object' ? opt.color : '#cccccc' }}
-                                      >
-                                        <input
-                                          type="color"
-                                          className="absolute inset-0 opacity-0 cursor-pointer scale-150"
-                                          value={typeof opt === 'object' ? opt.color : '#cccccc'}
-                                          onChange={(e) => {
-                                            const newOptions = [...(field.options || [])];
-                                            newOptions[optIndex] = { ...newOptions[optIndex], color: e.target.value };
-                                            updateField(index, { options: newOptions });
-                                          }}
-                                        />
-                                      </div>
-                                      <Input
-                                        value={typeof opt === 'object' ? opt.label : opt}
-                                        onChange={(e) => {
-                                          const newOptions = [...(field.options || [])];
-                                          newOptions[optIndex] = { ...newOptions[optIndex], label: e.target.value };
-                                          updateField(index, { options: newOptions });
-                                        }}
-                                        placeholder={`Status Label`}
-                                        className="h-10 rounded-lg border-mongodb-border-slate/40 text-sm font-medium"
-                                      />
-                                    </>
-                                  ) : (
-                                    <Input
-                                      value={opt}
-                                      onChange={(e) => {
-                                        const newOptions = [...(field.options || [])];
-                                        newOptions[optIndex] = e.target.value;
-                                        updateField(index, { options: newOptions });
-                                      }}
-                                      placeholder={`Option ${optIndex + 1}`}
-                                      className="h-10 rounded-lg border-mongodb-border-slate/40 text-sm font-medium"
-                                    />
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-10 w-10 text-mongodb-error/60 hover:text-mongodb-error hover:bg-mongodb-error/5 shrink-0"
-                                    onClick={() => {
-                                      const current = field.options || [];
-                                      const newOptions = current.filter((_, i) => i !== optIndex);
-                                      updateField(index, { options: newOptions });
-                                    }}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
+                            {(field.options || ['Option 1', 'Option 2']).map((opt, optIndex) => (
+                              <div key={optIndex} className="flex items-center gap-2">
+                                <Input
+                                  value={opt}
+                                  onChange={(e) => {
+                                    const newOptions = [...(field.options || [])];
+                                    newOptions[optIndex] = e.target.value;
+                                    updateField(index, { options: newOptions });
+                                  }}
+                                  placeholder={`Option ${optIndex + 1}`}
+                                  className="h-10 rounded-lg border-mongodb-border-slate/40 text-sm font-medium"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-10 w-10 text-mongodb-error/60 hover:text-mongodb-error hover:bg-mongodb-error/5 shrink-0"
+                                  onClick={() => {
+                                    const current = field.options || [];
+                                    const newOptions = current.filter((_, i) => i !== optIndex);
+                                    updateField(index, { options: newOptions });
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-mongodb-green-dark font-bold text-xs hover:bg-mongodb-green/5 gap-2 px-2"
                             onClick={() => {
-                              const currentOptions = field.options || (field.type === 'status'
-                                ? [{ label: 'Active', color: '#00ED64' }, { label: 'Pending', color: '#F9D800' }, { label: 'Inactive', color: '#6B8F8F' }]
-                                : ['Option 1', 'Option 2']);
-                              const newOpt = field.type === 'status' ? { label: `New Status`, color: '#6B8F8F' } : `Option ${currentOptions.length + 1}`;
+                              const currentOptions = field.options || ['Option 1', 'Option 2'];
+                              const newOpt = `Option ${currentOptions.length + 1}`;
                               updateField(index, { options: [...currentOptions, newOpt] });
                             }}
                           >
@@ -1041,52 +1006,6 @@ export default function WidgetBuilder() {
                           </div>
                         );
 
-                      case 'status':
-                        const statusOptions = (field.options || [
-                          { label: 'Active', color: '#00ED64' },
-                          { label: 'Pending', color: '#F9D800' },
-                          { label: 'Inactive', color: '#6B8F8F' }
-                        ]);
-                        return (
-                          <div className="space-y-1.5">
-                            <div className="flex flex-wrap gap-2 pt-1">
-                              {statusOptions.map((opt: any, idx) => {
-                                const label = typeof opt === 'object' ? opt.label : opt;
-                                const color = typeof opt === 'object' ? opt.color : '#cccccc';
-                                const isSelected = previewResponses[field.key] === label;
-
-                                return (
-                                  <button
-                                    key={idx}
-                                    onClick={() => {
-                                      setPreviewResponses({ ...previewResponses, [field.key]: label });
-                                      validateField(field, label);
-                                    }}
-                                    className={cn(
-                                      "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
-                                      isSelected
-                                        ? "text-white shadow-lg scale-105"
-                                        : "bg-transparent hover:bg-mongodb-light-slate/10"
-                                    )}
-                                    style={{
-                                      backgroundColor: isSelected ? color : 'transparent',
-                                      borderColor: color,
-                                      color: isSelected ? 'white' : color,
-                                      boxShadow: isSelected ? `0 4px 12px ${color}30` : 'none'
-                                    }}
-                                  >
-                                    {label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {errors[field.key] && (
-                              <p className="text-[10px] font-bold text-mongodb-error px-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                                {errors[field.key]}
-                              </p>
-                            )}
-                          </div>
-                        );
 
                       case 'phone':
                         return (
@@ -1115,8 +1034,8 @@ export default function WidgetBuilder() {
                               name={field.key}
                               placeholder={placeholder}
                               value={previewResponses[field.key] || ""}
-                              onKeyDown={field.type === 'phone' ? handlePhoneKeyDown : undefined}
-                              onPaste={field.type === 'phone' ? handlePhonePaste : undefined}
+                              onKeyDown={(field.type as any) === 'phone' ? handlePhoneKeyDown : undefined}
+                              onPaste={(field.type as any) === 'phone' ? handlePhonePaste : undefined}
                               onChange={(e) => {
                                 setPreviewResponses({ ...previewResponses, [field.key]: e.target.value });
                                 if (errors[field.key]) validateField(field, e.target.value);

@@ -536,46 +536,6 @@ export default function PublicForm() {
                                                 </div>
                                             );
 
-                                        case 'status':
-                                            return (
-                                                <div className="space-y-1.5">
-                                                    <div className="flex flex-wrap gap-3 pt-1">
-                                                        {(field.options || []).map((opt: any, idx) => {
-                                                            const label = typeof opt === 'object' ? opt.label : opt;
-                                                            const color = typeof opt === 'object' ? opt.color : '#6B8F8F';
-                                                            const isSelected = responses[field.label] === label;
-
-                                                            return (
-                                                                <button
-                                                                    key={idx}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setResponses({ ...responses, [field.label]: label });
-                                                                        validateField(field, label);
-                                                                    }}
-                                                                    className={cn(
-                                                                        "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all border",
-                                                                        isSelected ? "text-white shadow-xl scale-105" : "bg-transparent hover:bg-mongodb-light-slate/10"
-                                                                    )}
-                                                                    style={{
-                                                                        backgroundColor: isSelected ? color : 'transparent',
-                                                                        borderColor: color,
-                                                                        color: isSelected ? 'white' : color,
-                                                                        boxShadow: isSelected ? `0 10px 20px -5px ${color}50` : 'none'
-                                                                    }}
-                                                                >
-                                                                    {label}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    {errors[field.label] && (
-                                                        <p className="text-[10px] font-bold text-mongodb-error px-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                            {errors[field.label]}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            );
 
                                         default:
                                             return (
@@ -590,8 +550,8 @@ export default function PublicForm() {
                                                                 errors[field.label] && "border-mongodb-error focus:ring-mongodb-error/10"
                                                             )}
                                                             style={inputStyles}
-                                                            onKeyDown={field.type === 'phone' ? handlePhoneKeyDown : undefined}
-                                                            onPaste={field.type === 'phone' ? handlePhonePaste : undefined}
+                                                            onKeyDown={(field.type as any) === 'phone' ? handlePhoneKeyDown : undefined}
+                                                            onPaste={(field.type as any) === 'phone' ? handlePhonePaste : undefined}
                                                             onChange={(e) => {
                                                                 setResponses({ ...responses, [field.label]: e.target.value });
                                                                 if (errors[field.label]) validateField(field, e.target.value);
