@@ -6,11 +6,11 @@ export const insertUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   name: z.string().min(1),
-  role: z.enum(["owner", "rep", "admin"]).default("owner"),
+  role: z.enum(["owner", "agent"]).default("agent"),
   status: z.enum(["active", "inactive"]).default("active"),
   agencyId: z.number(),
-  resetPasswordToken: z.string().optional().nullable(),
-  resetPasswordExpiry: z.date().optional().nullable(),
+  resetToken: z.string().optional().nullable(),
+  resetTokenExpiresAt: z.date().optional().nullable(),
 });
 
 export const insertAgencySchema = z.object({

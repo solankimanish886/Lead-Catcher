@@ -66,6 +66,28 @@ export const api = {
         401: errorSchemas.unauthorized,
       },
     },
+    forgotPassword: {
+      method: 'POST' as const,
+      path: '/api/auth/forgot-password',
+      input: z.object({
+        email: z.string().email(),
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
+    resetPassword: {
+      method: 'POST' as const,
+      path: '/api/auth/reset-password',
+      input: z.object({
+        token: z.string(),
+        newPassword: z.string().min(6),
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+        400: errorSchemas.validation,
+      },
+    },
   },
   team: {
     list: {
@@ -102,7 +124,7 @@ export const api = {
       input: z.object({
         name: z.string().optional(),
         email: z.string().email().optional(),
-        role: z.enum(["owner", "rep", "admin"]).optional(),
+        role: z.enum(["owner", "agent"]).optional(),
         status: z.enum(["active", "inactive"]).optional(),
       }),
       responses: {

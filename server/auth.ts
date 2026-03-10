@@ -4,6 +4,7 @@ import { Express } from "express";
 import session from "express-session";
 import { MongoStore } from "connect-mongo";
 import { storage } from "./storage";
+import { api } from "@shared/routes";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { sendResetEmail } from "./mail";
@@ -55,7 +56,8 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy({ usernameField: "email" }, async (email, password, done) => {
       try {
-        const user = await storage.getUserByEmail(email);
+        const normalizedEmail = email.toLowerCase();
+        const user = await storage.getUserByEmail(normalizedEmail);
         if (!user) {
           return done(null, false, { message: "Invalid email or password" });
         }
@@ -100,7 +102,7 @@ export function setupAuth(app: Express) {
       // I only called `setupAuth(app)`.
       // So I MUST implement the auth routes HERE in `setupAuth`.
 
-      const email = req.body.email;
+      const email = req.body.email.toLowerCase();
       const existingUser = await storage.getUserByEmail(email);
 
       if (existingUser) {
@@ -165,27 +167,57 @@ export function setupAuth(app: Express) {
   });
 
   // Forgot Password
-  app.post("/api/auth/forgot-password", async (req, res) => {
+  app.post(api.auth.forgotPassword.path, async (req, res) => {
     try {
-      const { email } = req.body;
+      const email = req.body.email.toLowerCase();
       const user = await storage.getUserByEmail(email);
 
+      // Generic response for security
+      const genericResponse = { message: "If the email exists, a reset link has been sent." };
+
       if (!user) {
-        // We don't want to reveal if a user exists or not for security
-        return res.json({ message: "If an account exists with that email, a reset link has been sent." });
+        return res.json(genericResponse);
       }
 
       const token = randomBytes(32).toString("hex");
       const expiry = new Date(Date.now() + 3600000); // 1 hour
 
       await storage.updateUser(user.id, {
-        resetPasswordToken: token,
-        resetPasswordExpiry: expiry,
+        resetToken: token,
+        resetTokenExpiresAt: expiry,
       });
 
-      await sendResetEmail(email, token);
+      const webhookUrl = process.env.NODE_ENV === 'production'
+        ? process.env.N8N_FORGOT_PASSWORD_PRODUCTION_URL
+        : process.env.N8N_FORGOT_PASSWORD_TEST_URL;
 
-      res.json({ message: "Reset link sent" });
+      if (webhookUrl) {
+        const protocol = req.protocol;
+        const host = req.get('host');
+        const resetUrl = `${protocol}://${host}/reset-password?token=${token}`;
+
+        const payload = {
+          fullName: user.name,
+          workEmail: user.email,
+          resetUrl: resetUrl
+        };
+
+        try {
+          await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          console.log(`[PASSWORD_RESET] Webhook triggered for ${email}`);
+        } catch (webhookError) {
+          console.error("[PASSWORD_RESET] Webhook trigger failed:", webhookError);
+        }
+      } else {
+        console.warn("[PASSWORD_RESET] No webhook URL configured");
+        // Fallback or just log if required - user asked for n8n.
+      }
+
+      res.json(genericResponse);
     } catch (err) {
       console.error("Forgot password error:", err);
       res.status(500).json({ message: "An error occurred. Please try again later." });
@@ -193,20 +225,20 @@ export function setupAuth(app: Express) {
   });
 
   // Reset Password
-  app.post("/api/auth/reset-password", async (req, res) => {
+  app.post(api.auth.resetPassword.path, async (req, res) => {
     try {
       const { token, newPassword } = req.body;
       const user = await storage.getUserByToken(token);
 
-      if (!user || !user.resetPasswordExpiry || user.resetPasswordExpiry < new Date()) {
+      if (!user || !user.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
         return res.status(400).json({ message: "Invalid or expired reset token" });
       }
 
       const hashedPassword = await hash(newPassword, 10);
       await storage.updateUser(user.id, {
         password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpiry: null,
+        resetToken: null,
+        resetTokenExpiresAt: null,
       });
 
       res.json({ message: "Password reset successful" });

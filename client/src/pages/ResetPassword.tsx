@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, Zap, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { api } from "@shared/routes";
 
 export default function ResetPassword() {
     const [, setLocation] = useLocation();
@@ -20,7 +21,7 @@ export default function ResetPassword() {
 
     const mutation = useMutation({
         mutationFn: async (data: any) => {
-            const res = await fetch("/api/auth/reset-password", {
+            const res = await fetch(api.auth.resetPassword.path, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),

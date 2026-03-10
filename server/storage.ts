@@ -63,7 +63,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByToken(token: string): Promise<User | undefined> {
-    const user = await UserModel.findOne({ resetPasswordToken: token });
+    const user = await UserModel.findOne({ resetToken: token });
     return user ? user.toJSON() : undefined;
   }
 
@@ -170,8 +170,12 @@ export class DatabaseStorage implements IStorage {
     return newNote.toJSON();
   }
 
-  async getAgencyStats(agencyId: number, days: number): Promise<any> {
-    const agencyLeads = await this.getLeads(agencyId);
+  async getAgencyStats(agencyId: number, days: number, userId?: number): Promise<any> {
+    let agencyLeads = await this.getLeads(agencyId);
+
+    if (userId) {
+      agencyLeads = agencyLeads.filter(l => l.assignedTo === userId);
+    }
 
     const totalLeads = agencyLeads.length;
 

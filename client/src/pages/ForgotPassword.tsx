@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { api } from "@shared/routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,7 @@ export default function ForgotPassword() {
 
     const mutation = useMutation({
         mutationFn: async (email: string) => {
-            const res = await fetch("/api/auth/forgot-password", {
+            const res = await fetch(api.auth.forgotPassword.path, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),
