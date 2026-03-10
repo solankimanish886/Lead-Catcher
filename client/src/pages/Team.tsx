@@ -95,6 +95,12 @@ export default function TeamPage() {
       onError: (error: any) => {
         if (error.message?.includes("User already exists")) {
           setInviteErrors({ email: "This email is already part of your team" });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to invite member",
+            variant: "destructive"
+          });
         }
       }
     });
@@ -132,8 +138,7 @@ export default function TeamPage() {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'owner': return '#00ED64';
-      case 'admin': return '#F5A623';
-      case 'rep': return '#4ECDC4';
+      case 'agent': return '#4ECDC4';
       default: return '#888888';
     }
   };
@@ -284,8 +289,7 @@ export default function TeamPage() {
           <SelectContent className="rounded-2xl border-mongodb-border-slate/40 shadow-xl">
             <SelectItem value="all" className="font-bold">All Roles</SelectItem>
             <SelectItem value="owner" className="font-bold">Owners</SelectItem>
-            <SelectItem value="admin" className="font-bold">Admins</SelectItem>
-            <SelectItem value="rep" className="font-bold">Agents</SelectItem>
+            <SelectItem value="agent" className="font-bold">Agents</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -403,7 +407,7 @@ export default function TeamPage() {
                           border: `1px solid ${roleColor}30`
                         }}
                       >
-                        {member.role === 'owner' ? <ShieldCheck className="h-3 w-3" /> : (member.role === 'admin' ? <Shield className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />)}
+                        {member.role === 'owner' ? <ShieldCheck className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
                         {member.role}
                       </div>
                     </div>
@@ -498,14 +502,13 @@ export default function TeamPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-mongodb-slate-text px-1">Access Level</Label>
-                    <Select value={editRole} onValueChange={setEditRole} disabled={editingMember?.id === currentUser?.id}>
+                    <Select value={editRole} onValueChange={setEditRole} disabled={true}>
                       <SelectTrigger className="h-11 rounded-xl border-mongodb-border-slate/60 font-bold">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-mongodb-border-slate/40">
                         <SelectItem value="owner" className="font-bold">Owner</SelectItem>
-                        <SelectItem value="admin" className="font-bold">Admin</SelectItem>
-                        <SelectItem value="rep" className="font-bold">Agent</SelectItem>
+                        <SelectItem value="agent" className="font-bold">Agent</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -526,7 +529,7 @@ export default function TeamPage() {
 
               <div className="pt-4 flex flex-col gap-3">
                 <Button type="submit" disabled={isUpdating} className="w-full h-12 rounded-xl bg-mongodb-green text-mongodb-deep-slate font-black shadow-xl shadow-mongodb-green/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                  {isUpdating ? "Saving Intelligence..." : "Save Changes"}
+                  {isUpdating ? "Saving Staff Intelligence..." : "Save Changes"}
                 </Button>
                 <Button
                   type="button"

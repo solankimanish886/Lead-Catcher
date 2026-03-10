@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import { User } from "@shared/schema";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { hash } from "bcryptjs";
 
 export async function registerRoutes(
   httpServer: HttpServer,
@@ -32,46 +33,115 @@ export async function registerRoutes(
     next();
   };
 
-  // Team
-  app.get(api.team.list.path, requireAuth, async (req, res) => {
+  // Middleware to ensure user is an owner
+  const requireOwner = (req: any, res: any, next: any) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const user = req.user as User;
     if (user.role !== 'owner') {
-      return res.status(403).json({ message: "Only owners can view team" });
+      return res.status(403).json({ message: "Forbidden: Owner access required" });
     }
+    next();
+  };
+
+  // Team
+  app.get(api.team.list.path, requireAuth, requireOwner, async (req, res) => {
+    const user = req.user as User;
     const team = await storage.getAgencyUsers(user.agencyId);
     res.json(team);
   });
 
-  app.post(api.team.invite.path, requireAuth, async (req, res) => {
-    const user = req.user as User;
-    if (user.role !== 'owner') {
-      return res.status(403).json({ message: "Only owners can invite members" });
+  app.post(api.team.invite.path, requireAuth, requireOwner, async (req, res) => {
+    console.log("[INVITE] Route hit");
+
+    try {
+      const user = req.user as User;
+      const input = api.team.invite.input.safeParse(req.body);
+      if (!input.success) {
+        console.error("[INVITE] Validation error:", input.error.errors);
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: input.error.errors
+        });
+      }
+
+      const data = input.data;
+      data.email = data.email.toLowerCase();
+
+      console.log("[INVITE] Parsed input for:", data.email);
+
+      const existingUser = await storage.getUserByEmail(data.email);
+      if (existingUser) {
+        console.log("[INVITE] User already exists:", data.email);
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      console.log("[INVITE] Hashing password...");
+      const hashedPassword = await hash(data.password, 10);
+
+      console.log("[INVITE] Creating user in storage...");
+      const newUser = await storage.createUser({
+        ...data,
+        password: hashedPassword,
+        agencyId: user.agencyId,
+        role: 'agent',
+        status: 'active',
+      });
+
+      console.log("[INVITE] User created with ID:", newUser.id);
+
+      const webhookUrl = process.env.NODE_ENV === 'production'
+        ? process.env.N8N_PRODUCTION_URL
+        : process.env.N8N_TEST_URL;
+
+      console.log("[INVITE] Webhook URL:", webhookUrl || "NOT CONFIGURED");
+
+      if (webhookUrl) {
+        const protocol = req.protocol;
+        const host = req.get('host');
+        const loginUrl = `${protocol}://${host}/auth`;
+
+        const payload = {
+          fullName: data.name,
+          workEmail: data.email,
+          initialPassword: data.password,
+          userType: 'Agent',
+          loginUrl: loginUrl
+        };
+
+        console.log("[INVITE] Sending webhook payload...");
+
+        try {
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const responseText = await response.text();
+          console.log("[INVITE] Webhook response status:", response.status);
+
+          if (!response.ok) {
+            console.error("[INVITE] Webhook failed:", responseText);
+            // We still created the user, so maybe we return 201 but Warn?
+            // User requested "Expected Behavior: успешно send invitation AND create team member"
+            // If webhook fails, the "Invitation" (email) failed.
+          }
+        } catch (webhookError: any) {
+          console.error("[INVITE] Webhook fetch exception:", webhookError.message);
+        }
+      }
+
+      res.status(201).json(newUser);
+    } catch (err: any) {
+      console.error("[INVITE] Fatal route error:", err);
+      res.status(500).json({ message: err.message || "Internal server error" });
     }
-
-    const input = api.team.invite.input.parse(req.body);
-
-    // Check if user exists
-    const existingUser = await storage.getUserByEmail(input.email);
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    // Create new user in same agency
-    const newUser = await storage.createUser({
-      ...input,
-      agencyId: user.agencyId,
-      role: 'rep', // Default role for invites
-      status: 'active',
-    });
-
-    res.status(201).json(newUser);
   });
 
-  app.put(api.team.update.path, requireAuth, async (req, res) => {
+  app.put(api.team.update.path, requireAuth, requireOwner, async (req, res) => {
     const user = req.user as User;
-    if (user.role !== 'owner') {
-      return res.status(403).json({ message: "Only owners can manage team members" });
-    }
 
     const targetId = Number(req.params.id);
     const target = await storage.getUser(targetId);
@@ -94,11 +164,8 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.delete(api.team.delete.path, requireAuth, async (req, res) => {
+  app.delete(api.team.delete.path, requireAuth, requireOwner, async (req, res) => {
     const user = req.user as User;
-    if (user.role !== 'owner') {
-      return res.status(403).json({ message: "Only owners can remove members" });
-    }
 
     const targetId = Number(req.params.id);
     const target = await storage.getUser(targetId);
@@ -117,13 +184,13 @@ export async function registerRoutes(
   });
 
   // Widgets
-  app.get(api.widgets.list.path, requireAuth, async (req, res) => {
+  app.get(api.widgets.list.path, requireAuth, requireOwner, async (req, res) => {
     const user = req.user as User;
     const items = await storage.getWidgets(user.agencyId);
     res.json(items);
   });
 
-  app.get(api.widgets.get.path, requireAuth, async (req, res) => {
+  app.get(api.widgets.get.path, requireAuth, requireOwner, async (req, res) => {
     const user = req.user as User;
     const widget = await storage.getWidget(Number(req.params.id));
 
@@ -133,7 +200,7 @@ export async function registerRoutes(
     res.json(widget);
   });
 
-  app.post(api.widgets.create.path, requireAuth, async (req, res) => {
+  app.post(api.widgets.create.path, requireAuth, requireOwner, async (req, res) => {
     const user = req.user as User;
     const input = api.widgets.create.input.parse(req.body);
 
@@ -144,7 +211,7 @@ export async function registerRoutes(
     res.status(201).json(widget);
   });
 
-  app.put(api.widgets.update.path, requireAuth, async (req, res) => {
+  app.put(api.widgets.update.path, requireAuth, requireOwner, async (req, res) => {
     const user = req.user as User;
     const widget = await storage.getWidget(Number(req.params.id));
 
@@ -157,7 +224,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.delete(api.widgets.delete.path, requireAuth, async (req, res) => {
+  app.delete(api.widgets.delete.path, requireAuth, requireOwner, async (req, res) => {
     const user = req.user as User;
     const widget = await storage.getWidget(Number(req.params.id));
 
@@ -174,9 +241,9 @@ export async function registerRoutes(
     const user = req.user as User;
     const allLeads = await storage.getLeads(user.agencyId);
 
-    // Filter if rep
+    // Filter if agent
     let filtered = allLeads;
-    if (user.role === 'rep') {
+    if (user.role === 'agent') {
       filtered = allLeads.filter(l => l.assignedTo === user.id);
     }
 
@@ -202,7 +269,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Lead not found" });
     }
 
-    if (user.role === 'rep' && lead.assignedTo !== user.id) {
+    if (user.role === 'agent' && lead.assignedTo !== user.id) {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -278,7 +345,11 @@ export async function registerRoutes(
   // Dashboard
   app.get(api.dashboard.stats.path, requireAuth, async (req, res) => {
     const user = req.user as User;
-    const stats = await storage.getAgencyStats(user.agencyId, 30);
+    const stats = await storage.getAgencyStats(
+      user.agencyId,
+      30,
+      user.role === 'agent' ? user.id : undefined
+    );
     res.json(stats);
   });
 

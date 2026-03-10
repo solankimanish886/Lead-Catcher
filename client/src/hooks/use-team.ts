@@ -25,7 +25,10 @@ export function useInviteMember() {
         body: JSON.stringify(data),
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to invite member");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Failed to invite member" }));
+        throw new Error(err.message || "Failed to invite member");
+      }
       return api.team.invite.responses[201].parse(await res.json());
     },
     onSuccess: () => {
