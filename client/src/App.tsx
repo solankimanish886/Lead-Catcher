@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -55,6 +55,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
+  const { user } = useAuth();
   return (
     <Switch>
       {/* Public Routes */}
@@ -74,20 +75,20 @@ function Router() {
 
       <Route path="/widgets">
         <AuthenticatedLayout>
-          <WidgetsPage />
+          {user?.role === 'owner' ? <WidgetsPage /> : <Redirect to="/dashboard" />}
         </AuthenticatedLayout>
       </Route>
 
       {/* Widget Builder - Separate layout or full screen? Let's use full screen no sidebar for focus */}
       <Route path="/widgets/new">
         <AuthenticatedLayout>
-          <WidgetBuilder />
+          {user?.role === 'owner' ? <WidgetBuilder /> : <Redirect to="/dashboard" />}
         </AuthenticatedLayout>
       </Route>
 
       <Route path="/widgets/:id/edit">
         <AuthenticatedLayout>
-          <WidgetBuilder />
+          {user?.role === 'owner' ? <WidgetBuilder /> : <Redirect to="/dashboard" />}
         </AuthenticatedLayout>
       </Route>
 
@@ -105,7 +106,7 @@ function Router() {
 
       <Route path="/team">
         <AuthenticatedLayout>
-          <TeamPage />
+          {user?.role === 'owner' ? <TeamPage /> : <Redirect to="/dashboard" />}
         </AuthenticatedLayout>
       </Route>
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { useLead, useUpdateLead, useAddNote } from "@/hooks/use-leads";
 import { useTeam } from "@/hooks/use-team";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +19,7 @@ export default function LeadDetail() {
     const leadId = params?.id ? parseInt(params.id) : 0;
 
     const { data: lead, isLoading } = useLead(leadId);
+    const { user: currentUser } = useAuth();
     const { data: team } = useTeam();
     const { mutate: updateLead } = useUpdateLead();
     const { mutate: addNote, isPending: isAddingNote } = useAddNote();
@@ -110,17 +112,23 @@ export default function LeadDetail() {
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black text-mongodb-slate-text uppercase tracking-widest px-1">Assigned Agent</label>
-                        <Select value={lead.assignedTo?.toString()} onValueChange={handleAssigneeChange}>
-                            <SelectTrigger className="w-[180px] h-10 rounded-xl border-mongodb-border-slate/60 font-bold text-mongodb-deep-slate focus:ring-mongodb-green/20">
-                                <SelectValue placeholder="Unassigned" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-mongodb-border-slate/40 shadow-xl">
-                                <SelectItem value="null" className="font-bold opacity-50 italic">Unassigned</SelectItem>
-                                {team?.map(member => (
-                                    <SelectItem key={member.id} value={member.id.toString()} className="font-bold">{member.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {currentUser?.role === 'owner' ? (
+                            <Select value={lead.assignedTo?.toString()} onValueChange={handleAssigneeChange}>
+                                <SelectTrigger className="w-[180px] h-10 rounded-xl border-mongodb-border-slate/60 font-bold text-mongodb-deep-slate focus:ring-mongodb-green/20">
+                                    <SelectValue placeholder="Unassigned" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl border-mongodb-border-slate/40 shadow-xl">
+                                    <SelectItem value="null" className="font-bold opacity-50 italic">Unassigned</SelectItem>
+                                    {team?.map(member => (
+                                        <SelectItem key={member.id} value={member.id.toString()} className="font-bold">{member.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <div className="h-10 px-4 rounded-xl border border-mongodb-border-slate/60 bg-mongodb-light-slate/20 flex items-center font-bold text-mongodb-deep-slate text-sm">
+                                {lead.assigneeName || "Unassigned"}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -207,7 +215,9 @@ export default function LeadDetail() {
                                                         <div className="flex items-center gap-2">
                                                             <span className="font-black text-sm text-mongodb-deep-slate">{note.authorName || "Team Member"}</span>
                                                             <div className="w-1 h-1 bg-mongodb-border-slate/60 rounded-full" />
-                                                            <span className="text-[11px] font-bold text-mongodb-green-dark bg-mongodb-green/5 px-2 py-0.5 rounded-full border border-mongodb-green/10">Team Agent</span>
+                                                            <span className="text-[11px] font-bold text-mongodb-green-dark bg-mongodb-green/5 px-2 py-0.5 rounded-full border border-mongodb-green/10">
+                                                                {note.authorRole === 'owner' ? 'Owner' : 'Agent'}
+                                                            </span>
                                                         </div>
                                                         <span className="text-[11px] font-bold text-mongodb-slate-text uppercase tracking-tighter opacity-70">
                                                             {formatDistanceToNow(new Date(note.createdAt!), { addSuffix: true })}

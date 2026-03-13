@@ -16,9 +16,9 @@ export function Sidebar() {
   const links = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/leads", label: "Leads", icon: Users },
-    { href: "/widgets", label: "Forms", icon: MessageSquare }, // Updated Label
-    { href: "/team", label: "Team", icon: Briefcase },
-  ];
+    { href: "/widgets", label: "Forms", icon: MessageSquare, role: "owner" },
+    { href: "/team", label: "Team", icon: Briefcase, role: "owner" },
+  ].filter(link => !link.role || (user && user.role === link.role));
 
   if (!user) return null;
 

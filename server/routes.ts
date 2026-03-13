@@ -57,45 +57,35 @@ export async function registerRoutes(
 
     try {
       const user = req.user as User;
-      const input = api.team.invite.input.safeParse(req.body);
-      if (!input.success) {
-        console.error("[INVITE] Validation error:", input.error.errors);
-        return res.status(400).json({
-          message: "Validation failed",
-          errors: input.error.errors
-        });
-      }
+      const input = api.team.invite.input.parse(req.body);
+      input.email = input.email.toLowerCase();
 
-      const data = input.data;
-      data.email = data.email.toLowerCase();
+      console.log("[INVITE] Parsed input:", input);
 
-      console.log("[INVITE] Parsed input for:", data.email);
-
-      const existingUser = await storage.getUserByEmail(data.email);
+      const existingUser = await storage.getUserByEmail(input.email);
       if (existingUser) {
-        console.log("[INVITE] User already exists:", data.email);
+        console.log("[INVITE] User already exists");
         return res.status(400).json({ message: "User already exists" });
       }
 
-      console.log("[INVITE] Hashing password...");
-      const hashedPassword = await hash(data.password, 10);
+      const hashedPassword = await hash(input.password, 10);
 
-      console.log("[INVITE] Creating user in storage...");
       const newUser = await storage.createUser({
-        ...data,
+        ...input,
         password: hashedPassword,
         agencyId: user.agencyId,
         role: 'agent',
         status: 'active',
       });
 
-      console.log("[INVITE] User created with ID:", newUser.id);
+      console.log("[INVITE] User created:", newUser.id);
 
       const webhookUrl = process.env.NODE_ENV === 'production'
         ? process.env.N8N_PRODUCTION_URL
         : process.env.N8N_TEST_URL;
 
-      console.log("[INVITE] Webhook URL:", webhookUrl || "NOT CONFIGURED");
+      console.log("[WEBHOOK] NODE_ENV:", process.env.NODE_ENV);
+      console.log("[WEBHOOK] Selected URL:", webhookUrl);
 
       if (webhookUrl) {
         const protocol = req.protocol;
@@ -103,14 +93,14 @@ export async function registerRoutes(
         const loginUrl = `${protocol}://${host}/auth`;
 
         const payload = {
-          fullName: data.name,
-          workEmail: data.email,
-          initialPassword: data.password,
+          fullName: input.name,
+          workEmail: input.email,
+          initialPassword: input.password,
           userType: 'Agent',
           loginUrl: loginUrl
         };
 
-        console.log("[INVITE] Sending webhook payload...");
+        console.log("[WEBHOOK] Sending payload:", payload);
 
         try {
           const response = await fetch(webhookUrl, {
@@ -120,23 +110,26 @@ export async function registerRoutes(
           });
 
           const responseText = await response.text();
-          console.log("[INVITE] Webhook response status:", response.status);
+
+          console.log("[WEBHOOK] Status:", response.status);
+          console.log("[WEBHOOK] Response:", responseText);
 
           if (!response.ok) {
-            console.error("[INVITE] Webhook failed:", responseText);
-            // We still created the user, so maybe we return 201 but Warn?
-            // User requested "Expected Behavior: успешно send invitation AND create team member"
-            // If webhook fails, the "Invitation" (email) failed.
+            console.error("[WEBHOOK] Failed");
+          } else {
+            console.log("[WEBHOOK] Success");
           }
-        } catch (webhookError: any) {
-          console.error("[INVITE] Webhook fetch exception:", webhookError.message);
+        } catch (webhookError) {
+          console.error("[WEBHOOK] Fetch exception:", webhookError);
         }
+      } else {
+        console.warn("[WEBHOOK] No webhook URL configured");
       }
 
       res.status(201).json(newUser);
-    } catch (err: any) {
-      console.error("[INVITE] Fatal route error:", err);
-      res.status(500).json({ message: err.message || "Internal server error" });
+    } catch (err) {
+      console.error("[INVITE] Route error:", err);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -274,9 +267,9 @@ export async function registerRoutes(
     }
 
     const notes = await storage.getNotes(lead.id);
-    const enrichedNotes = await Promise.all(notes.map(async (note) => {
+    const notesWithAuthors = await Promise.all(notes.map(async (note) => {
       const author = await storage.getUser(note.authorId);
-      return { ...note, authorName: author?.name };
+      return { ...note, authorName: author?.name, authorRole: author?.role };
     }));
 
     const widget = await storage.getWidget(lead.widgetId);
@@ -288,7 +281,7 @@ export async function registerRoutes(
 
     res.json({
       ...lead,
-      notes: enrichedNotes,
+      notes: notesWithAuthors,
       widgetName: widget?.name,
       assigneeName
     });

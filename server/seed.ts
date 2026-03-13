@@ -33,18 +33,18 @@ async function seed() {
 
   console.log("Created owner:", owner.email);
 
-  // Create Rep
-  const repId = ownerId + 1;
-  const rep = await UserModel.create({
-    _id: repId,
-    email: "rep@leadcatcher.com",
+  // Create Agent
+  const agentId = ownerId + 1;
+  const agent = await UserModel.create({
+    _id: agentId,
+    email: "agent@leadcatcher.com",
     password: hashedPassword,
     name: "John Smith",
-    role: "rep",
+    role: "agent",
     agencyId: agency._id,
   });
 
-  console.log("Created rep:", rep.email);
+  console.log("Created agent:", agent.email);
 
   // Create Widget
   const widgetId = await getNextId(WidgetModel);
@@ -92,7 +92,7 @@ async function seed() {
       message: "Can you send pricing?",
     },
     status: "contacted",
-    assignedTo: rep._id,
+    assignedTo: agent._id,
   });
 
   console.log("Created leads");
