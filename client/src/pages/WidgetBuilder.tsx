@@ -28,6 +28,7 @@ import { PhoneInputWithCountry } from "@/components/ui/phone-input";
 import { getAppUrl } from "@/lib/env";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
+import { validatePhoneLength, getPhoneLengthErrorMessage } from "@/utils/validation";
 
 export default function WidgetBuilder() {
   const [match, params] = useRoute("/widgets/:id/edit");
@@ -140,10 +141,9 @@ export default function WidgetBuilder() {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value)) error = "Please enter a valid email address";
       } else if (field.type === 'phone') {
-        const phoneRegex = /^[0-9+\-()\s]+$/;
-        const parts = String(value).split(" ");
-        const hasNumber = parts.length >= 2 && parts[1].trim().length > 0;
-        if (!phoneRegex.test(value) || !hasNumber) error = "Please enter a valid phone number";
+        if (!validatePhoneLength(value, field.min, field.max)) {
+           error = getPhoneLengthErrorMessage(field.min, field.max);
+        }
       }
     }
 
@@ -182,8 +182,9 @@ export default function WidgetBuilder() {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!emailRegex.test(value)) error = "Please enter a valid email address";
         } else if (field.type === 'phone') {
-          const phoneRegex = /^[0-9+\-()\s]+$/;
-          if (!phoneRegex.test(value)) error = "Please enter a valid phone number";
+          if (!validatePhoneLength(value, field.min, field.max)) {
+             error = getPhoneLengthErrorMessage(field.min, field.max);
+          }
         }
       }
 
@@ -538,10 +539,10 @@ export default function WidgetBuilder() {
                       </div>
 
                       {/* Metadata Settings */}
-                      {field.type === 'number' && (
+                      {(field.type === 'number' || field.type === 'phone') && (
                         <div className="grid grid-cols-3 gap-4 bg-mongodb-light-slate/10 p-4 rounded-xl border border-mongodb-border-slate/20">
                           <div className="grid gap-2">
-                            <Label className="text-[9px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">Min</Label>
+                            <Label className="text-[9px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">{field.type === 'phone' ? 'Min Digits' : 'Min'}</Label>
                             <Input
                               type="number"
                               value={field.min ?? ""}
@@ -550,7 +551,7 @@ export default function WidgetBuilder() {
                             />
                           </div>
                           <div className="grid gap-2">
-                            <Label className="text-[9px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">Max</Label>
+                            <Label className="text-[9px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">{field.type === 'phone' ? 'Max Digits' : 'Max'}</Label>
                             <Input
                               type="number"
                               value={field.max ?? ""}
@@ -558,15 +559,17 @@ export default function WidgetBuilder() {
                               className="h-9 rounded-lg border-mongodb-border-slate/40 text-xs font-bold"
                             />
                           </div>
-                          <div className="grid gap-2">
-                            <Label className="text-[9px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">Step</Label>
-                            <Input
-                              type="number"
-                              value={field.step ?? ""}
-                              onChange={(e) => updateField(index, { step: e.target.value ? parseFloat(e.target.value) : undefined })}
-                              className="h-9 rounded-lg border-mongodb-border-slate/40 text-xs font-bold"
-                            />
-                          </div>
+                          {field.type !== 'phone' && (
+                            <div className="grid gap-2">
+                              <Label className="text-[9px] font-black text-mongodb-deep-slate uppercase tracking-wider px-1">Step</Label>
+                              <Input
+                                type="number"
+                                value={field.step ?? ""}
+                                onChange={(e) => updateField(index, { step: e.target.value ? parseFloat(e.target.value) : undefined })}
+                                className="h-9 rounded-lg border-mongodb-border-slate/40 text-xs font-bold"
+                              />
+                            </div>
+                           )}
                         </div>
                       )}
 
@@ -932,13 +935,10 @@ export default function WidgetBuilder() {
                         return (
                           <div className="space-y-1.5">
                             <Input
-                              type="number"
+                              type="tel"
                               name={field.key}
                               placeholder={placeholder}
                               value={previewResponses[field.key] || ""}
-                              min={field.min}
-                              max={field.max}
-                              step={field.step}
                               onKeyDown={handleNumberKeyDown}
                               onPaste={handlePhonePaste}
                               onChange={(e) => {
@@ -1030,7 +1030,8 @@ export default function WidgetBuilder() {
                         return (
                           <div className="space-y-1.5">
                             <Input
-                              type={field.type}
+                              type={field.type === 'phone' ? 'tel' : field.type}
+                              {...(field.type !== 'phone' && { min: field.min, max: field.max })}
                               name={field.key}
                               placeholder={placeholder}
                               value={previewResponses[field.key] || ""}

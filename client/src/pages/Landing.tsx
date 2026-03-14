@@ -203,7 +203,6 @@ export default function LandingPage() {
                         <div className="hidden lg:flex items-center gap-10 text-white/60 font-bold text-xs uppercase tracking-[0.2em]">
                             <a href="#features" className="hover:text-mongodb-green transition-colors">Features</a>
                             <a href="#integration" className="hover:text-mongodb-green transition-colors">Integrations</a>
-                            <a href="#pricing" className="hover:text-mongodb-green transition-colors">Pricing</a>
                         </div>
                         <div className="flex items-center gap-3 md:gap-5">
                             <Link href="/auth">
@@ -646,30 +645,17 @@ export default function LandingPage() {
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-20 mb-32"
+                        className="flex flex-col items-center text-center gap-6 mb-32"
                     >
-                        <div className="col-span-2">
-                            <div className="flex items-center gap-3 mb-10">
-                                <div className="w-10 h-10 bg-mongodb-green rounded-xl flex items-center justify-center shadow-lg shadow-mongodb-green/20">
-                                    <Layout className="text-mongodb-deep-slate w-6 h-6" />
-                                </div>
-                                <span className="text-2xl font-black text-white tracking-tighter">Lead Catcher</span>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-mongodb-green rounded-xl flex items-center justify-center shadow-lg shadow-mongodb-green/20">
+                                <Layout className="text-mongodb-deep-slate w-6 h-6" />
                             </div>
-                            <p className="text-lg text-white/50 font-medium max-w-xs leading-relaxed">
-                                Establishing the standard for high-performance lead acquisition.
-                            </p>
+                            <span className="text-2xl font-black text-white tracking-tighter">Lead Catcher</span>
                         </div>
-                        {["Intelligence", "Ecosystem", "Expansion"].map((title, i) => (
-                            <div key={i}>
-                                <h4 className="font-black text-white/80 mb-8 uppercase text-[10px] tracking-[0.3em]">{title}</h4>
-                                <ul className="space-y-4 text-sm text-white/40 font-bold">
-                                    <li><a href="#" className="hover:text-mongodb-green transition-colors transition-all hover:translate-x-1 inline-block">Core API</a></li>
-                                    <li><a href="#" className="hover:text-mongodb-green transition-colors transition-all hover:translate-x-1 inline-block">Global CDN</a></li>
-                                    <li><a href="#" className="hover:text-mongodb-green transition-colors transition-all hover:translate-x-1 inline-block">SLA Console</a></li>
-                                    <li><a href="#" className="hover:text-mongodb-green transition-colors transition-all hover:translate-x-1 inline-block">Trust Center</a></li>
-                                </ul>
-                            </div>
-                        ))}
+                        <p className="text-lg text-white/50 font-medium max-w-xs leading-relaxed">
+                            Establishing the standard for high-performance lead acquisition.
+                        </p>
                     </motion.div>
 
                     <motion.div

@@ -18,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { PhoneInputWithCountry } from "@/components/ui/phone-input";
+import { validatePhoneLength, getPhoneLengthErrorMessage } from "@/utils/validation";
 
 export default function PublicForm() {
     const [, params] = useRoute("/f/:id");
@@ -439,12 +440,10 @@ export default function PublicForm() {
                                                 <div className="space-y-1.5">
                                                     <div className="relative group">
                                                         <Input
-                                                            type="number"
+                                                            type="text"
+                                                            inputMode="numeric"
                                                             name={field.label}
                                                             placeholder={placeholder}
-                                                            min={field.min}
-                                                            max={field.max}
-                                                            step={field.step}
                                                             onKeyDown={handleNumberKeyDown}
                                                             onPaste={handlePhonePaste}
                                                             className={cn(
@@ -542,7 +541,8 @@ export default function PublicForm() {
                                                 <div className="space-y-1.5">
                                                     <div className="relative group">
                                                         <Input
-                                                            type={field.type}
+                                                            type={(field.type as any) === 'phone' ? 'tel' : field.type}
+                                                            {...((field.type as any) !== 'phone' && { min: (field as any).min, max: (field as any).max })}
                                                             name={field.label}
                                                             placeholder={placeholder}
                                                             className={cn(

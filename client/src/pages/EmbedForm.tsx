@@ -16,12 +16,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { PhoneInputWithCountry } from "@/components/ui/phone-input";
+import { validatePhoneLength, getPhoneLengthErrorMessage } from "@/utils/validation";
 
 export default function EmbedForm() {
   const [match, params] = useRoute("/embed/:id");
   const widgetId = params?.id ? parseInt(params.id) : 0;
 
   const [formState, setFormState] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSuccess, setIsSuccess] = useState(false);
 
   const { data: widget, isLoading } = useQuery({
@@ -74,7 +77,33 @@ export default function EmbedForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    submitMutation.mutate(formState);
+    let isValid = true;
+    const newErrors: Record<string, string> = {};
+
+    fields.forEach(field => {
+      const value = formState[field.key];
+      let error = "";
+      if (field.required && !value) {
+        error = "This field is required";
+      }
+
+      if (!error && value) {
+         if (field.type === 'phone' && !validatePhoneLength(value, field.min, field.max)) {
+             error = getPhoneLengthErrorMessage(field.min, field.max);
+         }
+      }
+
+      if (error) {
+        newErrors[field.key] = error;
+        isValid = false;
+      }
+    });
+
+    setErrors(newErrors);
+
+    if (isValid) {
+       submitMutation.mutate(formState);
+    }
   };
 
   if (isSuccess) {
@@ -250,13 +279,11 @@ export default function EmbedForm() {
                     case 'number':
                       return (
                         <Input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           required={field.required}
                           placeholder={placeholder}
                           value={formState[field.key] || ""}
-                          min={field.min}
-                          max={field.max}
-                          step={field.step}
                           onKeyDown={(e) => {
                             if (['e', 'E', '+', '-'].includes(e.key) && e.key !== '-') e.preventDefault();
                             if (e.key === '-' && e.currentTarget.value.length > 0) e.preventDefault();
@@ -310,12 +337,33 @@ export default function EmbedForm() {
                         </div>
                       );
 
+                    case 'phone':
+                      return (
+                        <div className="space-y-1.5">
+                            <PhoneInputWithCountry
+                                value={formState[field.key] || ""}
+                                onChange={(val) => {
+                                    setFormState({ ...formState, [field.key]: val });
+                                    if (errors[field.key]) {
+                                       setErrors(prev => ({...prev, [field.key]: ''}));
+                                    }
+                                }}
+                                error={!!errors[field.key]}
+                                className="h-12 rounded-2xl"
+                            />
+                            {errors[field.key] && (
+                                <p className="text-[10px] font-bold text-red-500 px-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    {errors[field.key]}
+                                </p>
+                            )}
+                        </div>
+                      );
 
                     default:
                       return (
                         <Input
-                          type={field.type}
-                          required={field.required}
+                          type={(field.type as any) === 'phone' ? 'tel' : field.type}
+                          {...((field.type as any) !== 'phone' && { min: (field as any).min, max: (field as any).max })}
                           placeholder={placeholder}
                           value={formState[field.key] || ""}
                           className="h-12 rounded-2xl border-slate-200 font-bold text-[#001E2B] focus:ring-4 focus:ring-opacity-10 transition-all placeholder:text-slate-300 bg-white"
